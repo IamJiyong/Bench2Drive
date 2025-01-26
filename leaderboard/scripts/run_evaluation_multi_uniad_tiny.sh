@@ -4,8 +4,7 @@ BASE_TM_PORT=50000
 IS_BENCH2DRIVE=True
 BASE_ROUTES=leaderboard/data/bench2drive220
 TEAM_AGENT=team_code/uniad_b2d_agent.py
-# Must set YOUR_CKPT_PATH
-TEAM_CONFIG=Bench2DriveZoo/adzoo/uniad/configs/stage2_e2e/tiny_e2e_b2d.py+YOUR_CKPT_PATH/uniad_tiny_b2d.pth
+TEAM_CONFIG=Bench2DriveZoo/adzoo/uniad/configs/stage2_e2e/tiny_e2e_b2d.py+Bench2DriveZoo/ckpts/uniad_tiny_b2d.pth
 BASE_CHECKPOINT_ENDPOINT=eval_bench2drive220
 PLANNER_TYPE=traj
 ALGO=uniad_tiny
