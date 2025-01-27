@@ -5,7 +5,7 @@ IS_BENCH2DRIVE=True
 BASE_ROUTES=leaderboard/data/bench2drive220
 TEAM_AGENT=team_code/vad_b2d_agent.py
 # Must set YOUR_CKPT_PATH
-TEAM_CONFIG=Bench2DriveZoo/adzoo/vad/configs/VAD/VAD_base_e2e_b2d.py+YOUR_CKPT_PATH/vad_b2d_base.pth
+TEAM_CONFIG=configs/VAD/VAD_base_e2e_b2d.py+ckpts/vad_b2d_base.pth
 BASE_CHECKPOINT_ENDPOINT=eval_bench2drive220
 PLANNER_TYPE=traj
 ALGO=vad
