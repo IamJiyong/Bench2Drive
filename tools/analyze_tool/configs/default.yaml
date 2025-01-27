@@ -1,0 +1,21 @@
+# default.yaml
+
+data:
+  input_path: "path/to/input/data"
+  output_path: "path/to/output/data"
+
+analyze:
+  # Specify which analyzer to use ("base" or "trajectory", etc.)
+  type: "trajectory"
+
+visualize:
+  enable: true
+  style: "default"  # could be "default", "advanced", etc.
+
+video:
+  # Output path for generated video
+  output_path: "analysis_video.mp4"
+  # Frames per second for the output video
+  fps: 30
+  # Whether to generate video after analysis
+  generate: false
