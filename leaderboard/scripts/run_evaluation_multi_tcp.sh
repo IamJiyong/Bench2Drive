@@ -5,7 +5,7 @@ IS_BENCH2DRIVE=True
 BASE_ROUTES=leaderboard/data/bench2drive220
 TEAM_AGENT=team_code/tcp_b2d_agent.py
 # Must set YOUR_CKPT_PATH
-TEAM_CONFIG=ckpts/tcp_b2d.ckpt
+TEAM_CONFIG=Bench2DriveZoo/ckpts/tcp_b2d.ckpt
 BASE_CHECKPOINT_ENDPOINT=eval_bench2drive220
 PLANNER_TYPE=merge_ctrl_traj # You can choose from only_ctrl, only_traj and merge_ctrl_traj
 ALGO=tcp

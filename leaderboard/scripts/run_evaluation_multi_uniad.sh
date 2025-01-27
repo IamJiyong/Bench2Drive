@@ -5,7 +5,7 @@ IS_BENCH2DRIVE=True
 BASE_ROUTES=leaderboard/data/bench2drive220
 TEAM_AGENT=team_code/uniad_b2d_agent.py
 # Must set YOUR_CKPT_PATH
-TEAM_CONFIG=configs/stage2_e2e/base_e2e_b2d.py+ckpts/uniad_base_b2d.pth
+TEAM_CONFIG=Bench2DriveZoo/adzoo/uniad/configs/stage2_e2e/base_e2e_b2d.py+Bench2DriveZoo/ckpts/uniad_base_b2d.pth
 BASE_CHECKPOINT_ENDPOINT=eval_bench2drive220
 PLANNER_TYPE=traj
 ALGO=uniad
