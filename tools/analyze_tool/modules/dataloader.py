@@ -80,7 +80,7 @@ class Dataloader:
                     frame_data["image"][cam] = None  # Handle missing images
 
             # Load Model Output
-            model_output_path = os.path.join(scenario_path, "model_output", f"{frame_id}.json")
+            model_output_path = os.path.join(scenario_path, "meta", f"{frame_id}.json")
             if os.path.exists(model_output_path):
                 with open(model_output_path, "r") as f:
                     frame_data["model_output"] = json.load(f)

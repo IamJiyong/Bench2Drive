@@ -5,8 +5,7 @@ dataloader_config:
   base_path: "/workspace/Bench2Drive/eval_v1"
   # scenearios: "all"
   scenarios:
-    - "scenario_1"
-    - "scenario_2"
+    - "RouteScenario_1711_rep0_Town12_ParkingCutIn_1_15_01_27_10_23_27"
   output_path: "/workspace/Bench2Drive/eval_v1_output"
   cameras:      
     # rgb_front, bev, rgb_front_left, rgb_front_right, rgb_back, etc.
