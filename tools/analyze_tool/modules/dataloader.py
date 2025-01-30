@@ -4,78 +4,87 @@
 """
 dataloader.py
 
-Manages loading and saving of data for the analysis tool.
-Also provides optional preprocessing functionality.
+Manages loading and streaming of data for the analysis tool, including images and model output metadata.
 """
 
 import os
+import json
+import yaml
+import cv2
 
 class Dataloader:
-    def __init__(self, config):
+    def __init__(self, base_path, config_path):
         """
-        Initialize the Dataloader with configuration.
+        Initialize the Dataloader with dataset path and configuration.
 
         Args:
-            config (dict): A dictionary containing configuration parameters.
+            base_path (str): The base directory containing camera folders and metadata.
+            config_path (str): Path to the YAML configuration file.
         """
-        self._config = config
+        self.base_path = base_path
+        self.config = self._load_config(config_path)
+        self.cameras = self.config.get("cameras", {}).keys()
+        self.frames = self._get_sorted_frames()
 
-    def load_data(self, path):
+    def _load_config(self, config_path):
+        """Load the camera configuration from a YAML file."""
+        with open(config_path, "r") as f:
+            return yaml.safe_load(f)
+
+    def _get_sorted_frames(self):
         """
-        Load data from the specified path.
-
-        Args:
-            path (str): The path to the input data.
+        Get sorted frame numbers from all data folders.
 
         Returns:
-            Any: The loaded data, which could be images, model output, ground truth, etc.
+            list: Sorted list of frame numbers as strings (e.g., ["0001", "0002", ...]).
         """
-        # TODO: Implement actual loading logic (e.g., reading images, JSON, pickle files, etc.)
-        # For now, just return a placeholder dictionary.
-        if not os.path.exists(path):
-            raise FileNotFoundError(f"Input path does not exist: {path}")
+        frame_ids = set()
+        for folder in self.cameras + ["model_output"]:
+            folder_path = os.path.join(self.base_path, folder)
+            if os.path.exists(folder_path):
+                files = [f.split(".")[0] for f in os.listdir(folder_path) if f.endswith(".png") or f.endswith(".json")]
+                frame_ids.update(files)
 
-        data = {
-            "image": None,
-            "model_output": None,
-            "ground_truth": None
-        }
+        return sorted(frame_ids)
 
-        # Example: Load images or other data structures here
-        # data["image"] = load_image(os.path.join(path, "image.png"))
-        # data["model_output"] = load_predictions(os.path.join(path, "predictions.json"))
-        # data["ground_truth"] = load_gt(os.path.join(path, "ground_truth.json"))
-
-        return data
-
-    def save_data(self, data, path):
+    def get_next_frame(self):
         """
-        Save data to the specified path.
+        Generator that yields one frame of data at a time.
+
+        Yields:
+            dict: A dictionary containing images (nested under "image") and model output metadata for a single frame.
+        """
+        for frame_id in self.frames:
+            frame_data = {"image": {}, "model_output": None}
+
+            # Load Images
+            for cam in self.cameras:
+                img_path = os.path.join(self.base_path, cam, f"{frame_id}.png")
+                if os.path.exists(img_path):
+                    frame_data["image"][cam] = cv2.imread(img_path)
+                else:
+                    frame_data["image"][cam] = None  # Handle missing images
+
+            # Load Model Output (previously meta)
+            model_output_path = os.path.join(self.base_path, "model_output", f"{frame_id}.json")
+            if os.path.exists(model_output_path):
+                with open(model_output_path, "r") as f:
+                    frame_data["model_output"] = json.load(f)
+            
+            yield frame_data  # Generator 방식으로 반환
+
+    def preprocess(self, frame_data):
+        """
+        Apply preprocessing to the images.
 
         Args:
-            data (Any): The data to be saved (e.g., analysis results, metrics, etc.).
-            path (str): The path to save the data.
-        """
-        # TODO: Implement saving logic here
-        # For instance, write to a JSON file, CSV, images, etc.
-        if not os.path.exists(path):
-            os.makedirs(path, exist_ok=True)
-
-        # Example: save as JSON or pickled object
-        # save_json(data, os.path.join(path, "results.json"))
-        # or save metrics to CSV, etc.
-
-        pass
-
-    def preprocess(self, data):
-        """
-        Optionally preprocess the data before analysis.
-
-        Args:
-            data (Any): The data to preprocess.
+            frame_data (dict): Dictionary containing images and model output metadata.
 
         Returns:
-            Any: The preprocessed data.
+            dict: Preprocessed images and metadata.
         """
-        # TODO: Implement preprocessing steps (e.g., resizing images, normalization, etc.)
-        return data
+        for cam in self.cameras:
+            if cam in frame_data["image"] and frame_data["image"][cam] is not None:
+                frame_data["image"][cam] = cv2.cvtColor(frame_data["image"][cam], cv2.COLOR_BGR2RGB)
+        
+        return frame_data
