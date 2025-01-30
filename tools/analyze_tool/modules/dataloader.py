@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python 
 # -*- coding: utf-8 -*-
 
 """
@@ -13,24 +13,18 @@ import yaml
 import cv2
 
 class Dataloader:
-    def __init__(self, config_path):
+    def __init__(self, config):
         """
         Initialize the Dataloader with dataset path and configuration.
 
         Args:
-            config_path (str): Path to the YAML configuration file.
+            config (dict): Configuration dictionary loaded from YAML.
         """
-        self.config = self._load_config(config_path)
-        self.base_path = self.config["dataloader_config"]["base_path"]
-        self.scenarios = self.config["dataloader_config"].get("scenarios", "all")
-        self.output_path = self.config["dataloader_config"]["output_path"]
-        self.cameras = self.config["dataloader_config"].get("cameras", [])
+        self.base_path = config["base_path"]
+        self.scenarios = config.get("scenarios", "all")
+        self.output_path = config["output_path"]
+        self.cameras = config.get("cameras", [])
         self.frames = self._get_sorted_frames()
-
-    def _load_config(self, config_path):
-        """Load the configuration from a YAML file."""
-        with open(config_path, "r") as f:
-            return yaml.safe_load(f)
 
     def _get_sorted_frames(self):
         """
