@@ -8,7 +8,8 @@ dataloader_config:
     - "scenario_1"
     - "scenario_2"
   output_path: "/workspace/Bench2Drive/eval_v1_output"
-  cameras:
+  cameras:      
+    # rgb_front, bev, rgb_front_left, rgb_front_right, rgb_back, etc.
     - rgb_front
     - bev
 
