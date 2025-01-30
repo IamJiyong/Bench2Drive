@@ -13,71 +13,88 @@ import cv2
 import numpy as np
 from . import vis_utils
 from .vis_utils import VideoGenerator
+from .camera_calibration import load_camera_config
 
 class Visualizer:
-    def __init__(self, config):
+    def __init__(self, config, cameras):
         """
-        Initialize the Visualizer with the given configuration.
+        Initialize the Visualizer with the given configuration and camera parameters.
 
         Args:
             config (dict): A dictionary containing configuration parameters.
+            cameras (dict): A dictionary containing camera calibration parameters.
         """
         self._config = config
         self.vis_elements = config.elements
+        self.cameras = cameras  # Store camera configurations
+        self.camera_matrices = self._load_camera_matrices()
 
-    def visualize_output(self, images, model_output, ground_truth=None):
+    def _load_camera_matrices(self):
+        """Load intrinsic and extrinsic matrices for all cameras."""
+        camera_matrices = {}
+        for cam_name in self.cameras:
+            intrinsic, extrinsic = load_camera_config(self.cameras, cam_name)
+            camera_matrices[cam_name] = {
+                "intrinsic": intrinsic,
+                "extrinsic": extrinsic
+            }
+        return camera_matrices
+
+    def visualize_output(self, frame_data):
         """
-        Visualize the model output alongside the ground truth on the given image.
+        Visualize model output on a single frame's images using camera matrices.
 
         Args:
-            image (numpy.ndarray): The input image on which to overlay information.
-            model_output (Any): The model's output data (e.g., bounding boxes, trajectories, etc.).
-            ground_truth (Any): The ground truth data for comparison.
+            frame_data (dict): Dictionary containing "image" (with individual camera images) and "model_output".
         """
-        if images is None:
-            print("No image provided for visualization.")
-            return
+        if "image" not in frame_data or "model_output" not in frame_data:
+            print("Invalid frame data provided for visualization.")
+            return None
+        
+        images = frame_data["image"]
+        model_output = frame_data["model_output"]
 
-        # Overlay visualization elements on the image
-        for element in self.vis_elements:
-            # Visualize the planned trajectory
-            if element == "planned_trajectory":
-                images = vis_utils.overlay_trajectory(images, model_output["planned_trajectory"])
+        for cam_name, image in images.items():
+            if image is None or cam_name not in self.camera_matrices:
+                continue
             
-            # Visualize the predicted trajectory
-            elif element == "predicted_trajectory":
-                images = vis_utils.overlay_trajectory(images, model_output["trajectory"])
-
-            # Visualize bounding boxes
-            elif element == "boxes":
-                if ground_truth is not None and "boxes" in ground_truth:
-                    gt_boxes = ground_truth["boxes"]
-                else:
-                    gt_boxes = []
-                images = vis_utils.draw_bounding_boxes(images, model_output["boxes"], gt_boxes)
+            # Retrieve intrinsic and extrinsic matrices for the current camera
+            intrinsic_matrix = self.camera_matrices[cam_name]["intrinsic"]
+            extrinsic_matrix = self.camera_matrices[cam_name]["extrinsic"]
             
-            # Add more visualization elements here
-            else:
-                pass
-
+            # Overlay visualization elements on the image using camera matrices
+            for element in self.vis_elements:
+                if element == "planned_trajectory":
+                    # vis_utils.py만 돌려보고 아직 여기서는 실행안해봄
+                    image = vis_utils.overlay_trajectory(image, model_output.get("plan", []), intrinsic_matrix, extrinsic_matrix)
+                elif element == "predicted_trajectory":
+                    image = vis_utils.overlay_trajectory(image, model_output.get("trajectory", []), intrinsic_matrix, extrinsic_matrix)
+                elif element == "boxes":
+                    image = vis_utils.draw_bounding_boxes(image, model_output.get("boxes", []), intrinsic_matrix, extrinsic_matrix)
+                
+            images[cam_name] = image  # Update the image with overlays
+        
         return images
 
-
-    def save_visualization(self, image, path):
+    def save_visualization(self, images, output_dir):
         """
-        Save the visualization result (image) to the specified path.
+        Save the visualization result (images) to the specified directory.
 
         Args:
-            image (numpy.ndarray): The image to be saved.
-            path (str): The file path where the image will be saved.
+            images (dict): Dictionary of images to be saved.
+            output_dir (str): Directory where images will be saved.
         """
-        if image is None:
-            print("No image to save.")
+        if images is None:
+            print("No images to save.")
             return
 
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        cv2.imwrite(path, image)
-        print(f"Visualization saved at: {path}")
+        os.makedirs(output_dir, exist_ok=True)
+        for cam_name, image in images.items():
+            if image is None:
+                continue
+            output_path = os.path.join(output_dir, f"{cam_name}.png")
+            cv2.imwrite(output_path, image)
+            print(f"Visualization saved at: {output_path}")
 
     def generate_video(self, images):
         """
