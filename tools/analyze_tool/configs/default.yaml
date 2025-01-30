@@ -1,22 +1,29 @@
 # default.yaml
+camera_calib: "configs/cam_calib.yaml"
 
-data:
-  input_path: "path/to/input/data"
-  output_path: "path/to/output/data"
-  camera_config_path: "dd"
+dataloader_config:
+  input_path: "/workspace/Bench2Drive/eval_v1"
+  output_path: "/workspace/Bench2Drive/eval_v1_output"
 
-analyze:
-  # Specify which analyzer to use ("base" or "trajectory", etc.)
-  type: "trajectory"
+analyze_config:
+  # Specify which analyzer to use ("default" or "trajectory", etc.)
+  type: "DefaultAnalyzer"
+  visualize: true
 
-visualize:
+visualizer_config:
   enable: true
   style: "default"  # could be "default", "advanced", etc.
 
-video:
-  # Output path for generated video
-  output_path: "analysis_video.mp4"
-  # Frames per second for the output video
-  fps: 30
-  # Whether to generate video after analysis
-  generate: false
+  output_video: true  # whether to generate video
+  video_generator:
+    # Output path for generated video
+    output_path: "analysis_video.mp4"
+    # Frames per second for the output video
+    fps: 30
+
+  # Which elements to visualize (list of strings)
+  elements:
+    - planned_trajectory
+    - predicted_trajectory
+    - bounding_box
+    

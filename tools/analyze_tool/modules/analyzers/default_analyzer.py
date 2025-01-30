@@ -13,15 +13,15 @@ from ..visualizer.visualizer import Visualizer
 
 
 class DefaultAnalyzer:
-    def __init__(self, config):
+    def __init__(self, config, dataloader, visualizer):
         """
         Initialize the base analyzer with config.
 
         Args:
             config (dict): Dictionary containing configuration parameters.
         """
-        self._dataloader = Dataloader(config.data_config) # initialize dataloader with data config
-        self._visualizer = Visualizer(config.visualizer_config) # initialize visualizer with visualizer config
+        self._dataloader = dataloader
+        self._visualizer = visualizer
         self._config = config
 
     def analyze(self):
@@ -33,10 +33,13 @@ class DefaultAnalyzer:
             Any: The analysis results (could be metrics, processed data, etc.).
         """
         # Example: load data, do minimal processing, and return results.
-        input_path = self._config["data"]["input_path"]
-        data = self._dataloader.load_data(input_path)
-        # No specific analysis here; just return the loaded data as a placeholder.
-        return data
+        results = {}
+
+        # visualize the data if visualizer is enabled
+        if self._visualizer and self._config.visualize:
+            results['visualize'] = self.visualize()
+
+        return results
 
     def save_results(self, results, output_path):
         """
@@ -49,19 +52,30 @@ class DefaultAnalyzer:
         # Example: use dataloader to save data
         self._dataloader.save_data(results, output_path)
 
-    def visualize(self, data):
+    def visualize(self):
         """
         Visualize the given data using the visualizer, if visualization is enabled.
 
         Args:
             data (Any): The data to visualize (e.g., images, model outputs, etc.).
         """
-        visualize_enabled = self._config.get("visualize", {}).get("enable", False)
-        if visualize_enabled:
-            # Example of calling a visualizer method
-            # This method would need to be adapted to the actual data structure
-            if isinstance(data, dict):
-                image = data.get("image")
-                model_output = data.get("model_output")
-                ground_truth = data.get("ground_truth")
-                self._visualizer.visualize_output(image, model_output, ground_truth)
+        output = None
+
+        # Visualize the data using the visualizer
+        vis_images = []
+        for data in self._dataloader:
+            image = data["image"]
+            model_output = data["model_output"]
+            ground_truth = data["ground_truth"]
+            vis_image = self._visualizer.visualize_output(image, model_output, ground_truth)
+            vis_images.append(vis_image)
+        
+        # Generate video or return list of images
+        if self._visualizer.output_video:
+            video = self._visualizer.generate_video(vis_images, self._config["visualize"]["output_path"])
+            output = video
+        else:
+            output = vis_images
+
+        return output
+                
