@@ -2,5 +2,4 @@ __pycache__/
 eval_*/
 Bench2DriveZoo
 leaderboard/team_code/
-tools/analyze_tool/modules/test_dataloader.py
 *.json
