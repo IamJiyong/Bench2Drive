@@ -40,24 +40,21 @@ def compute_extrinsic_matrix(sensor_pose, ego_pose=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0
 
     return adjust_matrix @ np.linalg.inv(sensor_extrinsic)
 
-def load_camera_config(yaml_path, camera_name):
+def load_camera_config(camera_data, camera_name):
     """
     Load camera intrinsic and extrinsic parameters for a specific camera.
     
     Args:
-        yaml_path (str): Path to the YAML configuration file.
+        camera_data (dict): Camera configuration dictionary.
         camera_name (str): Camera name to load parameters for (e.g., "rgb_front" or "bev").
     
     Returns:
         tuple: (intrinsic_matrix, extrinsic_matrix)
     """
-    with open(yaml_path, 'r') as file:
-        config = yaml.safe_load(file)
+    if camera_name not in camera_data:
+        raise ValueError(f"Camera '{camera_name}' not found in configuration.")
 
-    if camera_name not in config['cameras']:
-        raise ValueError(f"Camera '{camera_name}' not found in configuration file.")
-
-    cam_data = config['cameras'][camera_name]
+    cam_data = camera_data[camera_name]
 
     intrinsic_matrix = np.array([
         [cam_data['intrinsic_matrix']['fx'], 0, cam_data['intrinsic_matrix']['cx']],
@@ -65,12 +62,13 @@ def load_camera_config(yaml_path, camera_name):
         [0, 0, 1]
     ], dtype=np.float64)
 
-    # Load pose from YAML
+    # Load pose from camera data
     pose = cam_data['pose']
     sensor_pose = [pose['x'], pose['y'], pose['z'], pose['roll'], pose['pitch'], pose['yaw']]
     extrinsic_matrix = compute_extrinsic_matrix(sensor_pose)
 
     return intrinsic_matrix, extrinsic_matrix
+
 
 # # Example Usage
 # intrinsic_rgb, extrinsic_rgb = load_camera_config("/home/ysh/jiyong/b2d_carla/Bench2Drive/tools/analyze_tool/configs/camera_config.yaml", "rgb_front")

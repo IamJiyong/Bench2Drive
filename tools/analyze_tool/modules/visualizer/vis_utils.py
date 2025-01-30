@@ -10,6 +10,7 @@ Utility functions for visualization tasks, such as drawing bounding boxes, overl
 import cv2
 import numpy as np
 import os
+from scipy.interpolate import PchipInterpolator
 
 class VideoGenerator:
     def __init__(self, config):
@@ -130,30 +131,115 @@ def draw_bounding_boxes(image, boxes, labels=None, color=(255, 0, 0), thickness=
             cv2.putText(image, str(label), (x_min, y_min - 5),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
 
-def overlay_trajectory(image, trajectory, color=(0, 0, 255), thickness=2, camera_matrix=None, extrinsic_matrix=None):
+def project_3d_to_2d(points_3d, intrinsic_matrix, rvec, tvec):
+    """
+    Projects 3D world coordinates to 2D image coordinates.
+
+    Args:
+        points_3d (numpy.ndarray): Nx3 array of 3D points.
+        intrinsic_matrix (numpy.ndarray): 3x3 intrinsic camera matrix.
+        rvec (numpy.ndarray): 3x3 rotation matrix.
+        tvec (numpy.ndarray): 3x1 translation vector.
+
+    Returns:
+        numpy.ndarray: Nx2 array of projected 2D points.
+    """
+    if points_3d.shape[1] == 3:
+        # Convert to homogeneous coordinates (Nx4)
+        points_3d = np.hstack((points_3d, np.ones((points_3d.shape[0], 1))))
+
+    # Apply extrinsic transformation
+    transformed_points = np.dot(rvec, points_3d[:, :3].T).T + tvec
+
+    # Filter out points behind the camera
+    transformed_points = transformed_points[transformed_points[:, 2] > 0]
+
+    # Convert to homogeneous coordinates (Nx4)
+    transformed_points = np.hstack((transformed_points, np.ones((transformed_points.shape[0], 1))))
+
+    # Compute projection matrix
+    projection_matrix = np.dot(intrinsic_matrix, np.eye(3, 4))
+
+    # Apply projection
+    image_points = np.dot(projection_matrix, transformed_points.T).T
+
+    # Normalize to get pixel coordinates
+    image_points[:, 0] /= image_points[:, 2]
+    image_points[:, 1] /= image_points[:, 2]
+
+    return image_points[:, :2]
+
+
+def monotonic_spline(points, num_points=100):
+    """
+    Generates a monotonic cubic spline curve through the given set of points.
+    
+    Args:
+        points (list of tuples): List of control points [(x1, y1), (x2, y2), ...].
+        num_points (int): Number of points to interpolate between control points.
+    
+    Returns:
+        np.ndarray: Interpolated points along the spline.
+    """
+    if len(points) < 2:
+        return np.array(points)
+
+    points = np.array(points)
+    points = points[np.argsort(points[:, 1])]
+
+    x = points[:, 0]
+    y = points[:, 1]
+
+    pchip = PchipInterpolator(y, x)
+    y_new = np.linspace(y.min(), y.max(), num_points)
+    x_new = pchip(y_new)
+
+    return np.column_stack((x_new, y_new))
+
+def overlay_trajectory(image, trajectory, intrinsic_matrix=None, extrinsic_matrix=None):
     """
     Overlay a trajectory (sequence of points) on the given image, transforming from 3D world coordinates if necessary.
 
     Args:
         image (numpy.ndarray): The image on which to overlay the trajectory.
         trajectory (list): A list of (x, y) points or 3D world coordinates.
-        color (tuple, optional): The color of the trajectory in BGR format. Defaults to (0, 0, 255).
-        thickness (int, optional): The thickness of the trajectory line. Defaults to 2.
-        camera_matrix (numpy.ndarray, optional): Camera intrinsic matrix.
+        intrinsic_matrix (numpy.ndarray, optional): Camera intrinsic matrix.
         extrinsic_matrix (numpy.ndarray, optional): Camera extrinsic transformation matrix.
     """
     if trajectory is None or len(trajectory) < 2:
-        return
-
-    if camera_matrix is not None and extrinsic_matrix is not None:
+        return image
+    
+    img_h, img_w = image.shape[:2]  # Get image dimensions
+    
+    if intrinsic_matrix is not None and extrinsic_matrix is not None:
         rvec = extrinsic_matrix[:3, :3]
         tvec = extrinsic_matrix[:3, 3]
-        trajectory = project_3d_to_2d(np.array(trajectory), camera_matrix, rvec, tvec)
+        trajectory = project_3d_to_2d(np.array(trajectory), intrinsic_matrix, rvec, tvec)
+    
+    # Filter out points that are outside the image boundaries
+    # trajectory = [(x, y) for x, y in trajectory if 0 <= x < img_w and 0 <= y < img_h]
+    
+    if len(trajectory) < 2:
+        print("No valid trajectory points within image bounds.")
+        return image
+    
+    trajectory = monotonic_spline(trajectory, num_points=500)
+
+    y_coords = np.array([pt[1] for pt in trajectory])
+    min_y, max_y = y_coords.min(), min(y_coords.max(), img_h)
 
     for i in range(len(trajectory) - 1):
         pt1 = (int(trajectory[i][0]), int(trajectory[i][1]))
-        pt2 = (int(trajectory[i+1][0]), int(trajectory[i+1][1]))
-        cv2.line(image, pt1, pt2, color, thickness)
+        pt2 = (int(trajectory[i + 1][0]), int(trajectory[i + 1][1]))
+
+        intensity = int(255 * (trajectory[i][1] - min_y) / (max_y - min_y))
+        color = (255, 255 - intensity, 0)  # Light blue with intensity variation
+
+        cv2.line(image, pt1, pt2, color=color, thickness=4)
+    
+    return image
+
+
 
 def colorize_segmentation(mask):
     """

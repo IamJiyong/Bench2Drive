@@ -36,7 +36,7 @@ def main():
 
     # 3. Initialize dataloader and visualizer
     dataloader = Dataloader(config.dataloader_config)
-    visualizer = Visualizer(config.visualizer_config)
+    visualizer = Visualizer(config.visualizer_config, config.cameras)
 
     # 4. Choose which analyzer to use based on config
     analyzer = analyzer_dict[config.analyze_config.type](config.analyze_config, dataloader, visualizer)
