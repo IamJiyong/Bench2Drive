@@ -64,10 +64,10 @@ class DefaultAnalyzer:
         # Visualize the data using the visualizer
         vis_images = []
         for data in self._dataloader:
-            image = data["image"]
+            images = data["image"]
             model_output = data["model_output"]
             ground_truth = data["ground_truth"]
-            vis_image = self._visualizer.visualize_output(image, model_output, ground_truth)
+            vis_image = self._visualizer.visualize_output(images, model_output, ground_truth)
             vis_images.append(vis_image)
         
         # Generate video or return list of images

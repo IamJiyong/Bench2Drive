@@ -23,8 +23,9 @@ class Visualizer:
             config (dict): A dictionary containing configuration parameters.
         """
         self._config = config
+        self.vis_elements = config.elements
 
-    def visualize_output(self, image, model_output, ground_truth=None):
+    def visualize_output(self, images, model_output, ground_truth=None):
         """
         Visualize the model output alongside the ground truth on the given image.
 
@@ -33,44 +34,34 @@ class Visualizer:
             model_output (Any): The model's output data (e.g., bounding boxes, trajectories, etc.).
             ground_truth (Any): The ground truth data for comparison.
         """
-        if image is None:
+        if images is None:
             print("No image provided for visualization.")
             return
 
-        # Example usage of utility functions (assuming model_output might contain bounding boxes, trajectories, etc.)
-        # if "boxes" in model_output:
-        #     vis_utils.draw_bounding_boxes(image, model_output["boxes"], model_output["labels"])
-        #
-        # if "trajectory" in model_output:
-        #     vis_utils.overlay_trajectory(image, model_output["trajectory"])
+        # Overlay visualization elements on the image
+        for element in self.vis_elements:
+            # Visualize the planned trajectory
+            if element == "planned_trajectory":
+                images = vis_utils.overlay_trajectory(images, model_output["planned_trajectory"])
+            
+            # Visualize the predicted trajectory
+            elif element == "predicted_trajectory":
+                images = vis_utils.overlay_trajectory(images, model_output["trajectory"])
 
-        # Optionally, visualize ground truth (similar approach)
-        # if ground_truth and "trajectory" in ground_truth:
-        #     vis_utils.overlay_trajectory(image, ground_truth["trajectory"], color=(0,255,0))
+            # Visualize bounding boxes
+            elif element == "boxes":
+                if ground_truth is not None and "boxes" in ground_truth:
+                    gt_boxes = ground_truth["boxes"]
+                else:
+                    gt_boxes = []
+                images = vis_utils.draw_bounding_boxes(images, model_output["boxes"], gt_boxes)
+            
+            # Add more visualization elements here
+            else:
+                pass
 
-        # This function might not return anything if it draws in-place.
-        # But if you want to keep the original image unmodified, consider copying first.
-        return image
+        return images
 
-    def visualize_error(self, image, model_output, ground_truth):
-        """
-        Visualize the difference (error) between the model output and ground truth on the given image.
-
-        Args:
-            image (numpy.ndarray): The input image on which to overlay error information.
-            model_output (Any): The model's output data.
-            ground_truth (Any): The ground truth data.
-        """
-        if image is None:
-            print("No image provided for error visualization.")
-            return
-
-        # TODO: Implement logic to visualize errors, such as drawing lines between
-        # predicted and ground truth trajectory points or highlighting mismatched bounding boxes.
-        # For example:
-        # error_map = compute_error_map(model_output, ground_truth)
-        # image_with_error = draw_error(image, error_map)
-        pass
 
     def save_visualization(self, image, path):
         """
