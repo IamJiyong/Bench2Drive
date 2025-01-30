@@ -10,33 +10,41 @@ Loads the configuration, sets up the analyzer, and runs the analysis.
 """
 
 import argparse
-import yaml
-from easydict import EasyDict as edict
 
-# Example imports (adjust or remove if you do not need all)
+from modules.dataloader import Dataloader
+from modules.visualizer.visualizer import Visualizer
 from modules.analyzers import __all__ as analyzer_dict
+from utils.config import load_yaml
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Run the analysis tool.")
+    parser.add_argument("--config", type=str, default="configs/default.yaml",
+                        help="Path to the configuration file.")
+    args = parser.parse_args()
+    return args
+
 
 def main():
     """Main function to run the analysis tool."""
 
     # 1. Parse command line arguments (optional)
-    parser = argparse.ArgumentParser(description="Run the analysis tool.")
-    parser.add_argument("--config", type=str, default="configs/default.yaml",
-                        help="Path to the configuration file.")
-    args = parser.parse_args()
+    args = parse_arguments()
 
     # 2. Load configuration from YAML file and convert to EasyDict
-    with open(args.config, "r") as f:
-        config = edict(yaml.safe_load(f))
+    config = load_yaml(args.config)
 
-    # 3. Choose which analyzer to use based on config
-    analyze_type = config.analyze.type if "analyze" in config and "type" in config.analyze else "base"
-    analyzer = analyzer_dict[analyze_type](config)
+    # 3. Initialize dataloader and visualizer
+    dataloader = Dataloader(config.dataloader_config)
+    visualizer = Visualizer(config.visualizer_config)
 
-    # 4. Run the analysis
-    results = analyzer_dict[analyze_type].analyze()
+    # 4. Choose which analyzer to use based on config
+    analyzer = analyzer_dict[config.analyze_config.type](config.analyze_config, dataloader, visualizer)
 
-    # 5. Save or output the results
+    # 5. Run the analysis
+    results = analyzer.analyze()
+
+    # 6. Save or output the results
     analyzer.save_results(results, config.data.output_path)
 
 if __name__ == "__main__":

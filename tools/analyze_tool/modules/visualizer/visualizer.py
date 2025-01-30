@@ -12,6 +12,7 @@ import os
 import cv2
 import numpy as np
 from . import vis_utils
+from .vis_utils import VideoGenerator
 
 class Visualizer:
     def __init__(self, config):
@@ -23,7 +24,7 @@ class Visualizer:
         """
         self._config = config
 
-    def visualize_output(self, image, model_output, ground_truth):
+    def visualize_output(self, image, model_output, ground_truth=None):
         """
         Visualize the model output alongside the ground truth on the given image.
 
@@ -86,3 +87,20 @@ class Visualizer:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         cv2.imwrite(path, image)
         print(f"Visualization saved at: {path}")
+
+    def generate_video(self, images):
+        """
+        Generate a video from a list of images.
+
+        Args:
+            images (list): A list of image frames (numpy arrays) to be converted to a video.
+        """
+        if not images:
+            print("No images provided for video generation.")
+            return
+
+        # Initialize the video generator
+        video_gen = VideoGenerator(self._config.video.fps, self._config.video.output_path)
+
+        # Generate the video
+        video_gen.generate(images)
