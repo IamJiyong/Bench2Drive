@@ -9,7 +9,6 @@ Utility functions for visualization tasks, such as drawing bounding boxes, overl
 
 import cv2
 import numpy as np
-from calibration_utils import project_3d_to_2d
 import os
 
 class VideoGenerator:
