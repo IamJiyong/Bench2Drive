@@ -63,10 +63,10 @@ class DefaultAnalyzer:
 
         # Visualize the data using the visualizer
         vis_images = []
-        for data in self._dataloader:
+        for data in self._dataloader.get_next_frame():
             images = data["image"]
             model_output = data["model_output"]
-            ground_truth = data["ground_truth"]
+            ground_truth = data.get('ground_truth', None)
             vis_image = self._visualizer.visualize_output(images, model_output, ground_truth)
             vis_images.append(vis_image)
         
