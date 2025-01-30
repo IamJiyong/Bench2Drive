@@ -1,0 +1,35 @@
+rgb_front:
+  width: 1600
+  height: 900
+  fov: 70
+  intrinsic_matrix: 
+    fx: 1142.5184
+    fy: 1142.5184
+    cx: 800.0
+    cy: 450.0
+  distortion_coeffs: [0.0, 0.0, 0.0, 0.0, 0.0]
+  pose:  # Camera Pose (Extrinsic)
+    x: 0.80
+    y: 0.0
+    z: 1.60
+    roll: 0.0
+    pitch: 0.0
+    yaw: 0.0
+
+bev:
+  width: 1600
+  height: 900
+  fov: 110
+  intrinsic_matrix: 
+    fx: 560.1660
+    fy: 560.1660
+    cx: 800.0
+    cy: 450.0
+  distortion_coeffs: [0.0, 0.0, 0.0, 0.0, 0.0]
+  pose:  # Camera Pose (Extrinsic)
+    x: 0.0
+    y: 0.0
+    z: 50.0
+    roll: 0.0
+    pitch: -90.0
+    yaw: 0.0

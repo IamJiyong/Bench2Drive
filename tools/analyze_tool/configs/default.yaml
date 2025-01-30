@@ -1,16 +1,12 @@
 # default.yaml
-camera_calib: "configs/cam_calib.yaml"
+cameras: "configs/cameras_config.yaml"
 
 dataloader_config:
   base_path: "/workspace/Bench2Drive/eval_v1"
   # scenearios: "all"
   scenarios:
-    - "RouteScenario_1711_rep0_Town12_ParkingCutIn_1_15_01_27_10_23_27"
+    - "RouteScenario_3074_rep0_Town12_HighwayCutIn_1_0_01_30_09_19_14"
   output_path: "/workspace/Bench2Drive/eval_v1_output"
-  cameras:      
-    # rgb_front, bev, rgb_front_left, rgb_front_right, rgb_back, etc.
-    - rgb_front
-    - bev
 
 analyze_config:
   # Specify which analyzer to use ("default" or "trajectory", etc.)
@@ -33,6 +29,6 @@ visualizer_config:
 
   # Which elements to visualize (list of strings)
   elements:
-    - planned_trajectory
-    - predicted_trajectory
+    # - planned_trajectory
+    # - predicted_trajectory
     - bounding_box

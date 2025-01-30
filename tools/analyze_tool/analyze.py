@@ -35,7 +35,7 @@ def main():
     config = load_yaml(args.config)
 
     # 3. Initialize dataloader and visualizer
-    dataloader = Dataloader(config.dataloader_config)
+    dataloader = Dataloader(config.dataloader_config, config.cameras)
     visualizer = Visualizer(config.visualizer_config, config.cameras)
 
     # 4. Choose which analyzer to use based on config

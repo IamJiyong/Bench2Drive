@@ -40,21 +40,24 @@ class Visualizer:
             }
         return camera_matrices
 
-    def visualize_output(self, frame_data):
+    def visualize_output(self, images, model_output, ground_truth=None):
         """
-        Visualize model output on a single frame's images using camera matrices.
+        Visualize model outputs on multiple camera images using camera matrices.
 
         Args:
-            frame_data (dict): Dictionary containing "image" (with individual camera images) and "model_output".
+            images (dict): A dictionary containing camera images keyed by camera name.
+                        Example: {"rgb_front": <image_array>, "bev": <image_array>, ...}
+            model_output (dict): A dictionary containing model predictions such as
+                                planned trajectories, predicted trajectories, bounding boxes, etc.
         """
-        if "image" not in frame_data or "model_output" not in frame_data:
-            print("Invalid frame data provided for visualization.")
+        # Validate that both inputs are provided
+        if images is None or model_output is None:
+            print("Invalid inputs for visualization: 'images' or 'model_output' is None.")
             return None
-        
-        images = frame_data["image"]
-        model_output = frame_data["model_output"]
 
+        # Iterate through each camera image
         for cam_name, image in images.items():
+            # Check if the image is valid and whether we have camera matrices for this camera
             if image is None or cam_name not in self.camera_matrices:
                 continue
             
@@ -62,19 +65,38 @@ class Visualizer:
             intrinsic_matrix = self.camera_matrices[cam_name]["intrinsic"]
             extrinsic_matrix = self.camera_matrices[cam_name]["extrinsic"]
             
-            # Overlay visualization elements on the image using camera matrices
+            # Overlay different visualization elements based on the specified vis_elements
             for element in self.vis_elements:
                 if element == "planned_trajectory":
-                    # vis_utils.py만 돌려보고 아직 여기서는 실행안해봄
-                    image = vis_utils.overlay_trajectory(image, model_output.get("plan", []), intrinsic_matrix, extrinsic_matrix)
+                    # Overlay the planned trajectory
+                    image = vis_utils.overlay_trajectory(
+                        image,
+                        model_output.get("plan", []),
+                        intrinsic_matrix,
+                        extrinsic_matrix
+                    )
                 elif element == "predicted_trajectory":
-                    image = vis_utils.overlay_trajectory(image, model_output.get("trajectory", []), intrinsic_matrix, extrinsic_matrix)
+                    # Overlay the predicted trajectory
+                    image = vis_utils.overlay_trajectory(
+                        image,
+                        model_output.get("trajectory", []),
+                        intrinsic_matrix,
+                        extrinsic_matrix
+                    )
                 elif element == "boxes":
-                    image = vis_utils.draw_bounding_boxes(image, model_output.get("boxes", []), intrinsic_matrix, extrinsic_matrix)
-                
-            images[cam_name] = image  # Update the image with overlays
-        
+                    # Draw bounding boxes
+                    image = vis_utils.draw_bounding_boxes(
+                        image,
+                        model_output.get("boxes", []),
+                        intrinsic_matrix,
+                        extrinsic_matrix
+                    )
+            
+            # Update the processed image in the dictionary
+            images[cam_name] = image
+
         return images
+
 
     def save_visualization(self, images, output_dir):
         """
