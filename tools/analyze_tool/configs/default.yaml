@@ -2,8 +2,15 @@
 camera_calib: "configs/cam_calib.yaml"
 
 dataloader_config:
-  input_path: "/workspace/Bench2Drive/eval_v1"
+  base_path: "/workspace/Bench2Drive/eval_v1"
+  # scenearios: "all"
+  scenarios:
+    - "scenario_1"
+    - "scenario_2"
   output_path: "/workspace/Bench2Drive/eval_v1_output"
+  cameras:
+    - rgb_front
+    - bev
 
 analyze_config:
   # Specify which analyzer to use ("default" or "trajectory", etc.)
@@ -13,6 +20,9 @@ analyze_config:
 visualizer_config:
   enable: true
   style: "default"  # could be "default", "advanced", etc.
+  cameras:
+    - rgb_front
+    - bev
 
   output_video: true  # whether to generate video
   video_generator:
@@ -26,4 +36,3 @@ visualizer_config:
     - planned_trajectory
     - predicted_trajectory
     - bounding_box
-    

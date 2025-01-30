@@ -13,7 +13,7 @@ import yaml
 import cv2
 
 class Dataloader:
-    def __init__(self, base_path, config_path):
+    def __init__(self, config):
         """
         Initialize the Dataloader with dataset path and configuration.
 
@@ -21,15 +21,9 @@ class Dataloader:
             base_path (str): The base directory containing camera folders and metadata.
             config_path (str): Path to the YAML configuration file.
         """
-        self.base_path = base_path
-        self.config = self._load_config(config_path)
-        self.cameras = self.config.get("cameras", {}).keys()
+        self.config = config
+        self.cameras = self.config.cameras
         self.frames = self._get_sorted_frames()
-
-    def _load_config(self, config_path):
-        """Load the camera configuration from a YAML file."""
-        with open(config_path, "r") as f:
-            return yaml.safe_load(f)
 
     def _get_sorted_frames(self):
         """
