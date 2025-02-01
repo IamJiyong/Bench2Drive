@@ -29,6 +29,7 @@ class Visualizer:
         self.cameras = cameras  # Store camera configurations
         self.camera_matrices = self._load_camera_matrices()
 
+
     def _load_camera_matrices(self):
         """Load intrinsic and extrinsic matrices for all cameras."""
         camera_matrices = {}
@@ -39,6 +40,7 @@ class Visualizer:
                 "extrinsic": extrinsic
             }
         return camera_matrices
+
 
     def visualize_output(self, images, model_output, ground_truth=None):
         """
@@ -83,13 +85,14 @@ class Visualizer:
                         intrinsic_matrix,
                         extrinsic_matrix
                     )
-                elif element == "boxes":
+                elif element == "bbox_3d":
                     # Draw bounding boxes
+                    boxes_corners = model_output.get("boxes_corners", [])
                     image = vis_utils.draw_bounding_boxes(
                         image,
-                        model_output.get("boxes", []),
-                        intrinsic_matrix,
-                        extrinsic_matrix
+                        boxes_corners,
+                        camera_matrix=intrinsic_matrix,
+                        extrinsic_matrix=extrinsic_matrix
                     )
             
             # Update the processed image in the dictionary
@@ -98,27 +101,35 @@ class Visualizer:
         return images
 
 
-    def save_visualization(self, images, output_dir):
+    def save_visualization(self, images, image_metas, output_dir):
         """
         Save the visualization result (images) to the specified directory.
 
         Args:
-            images (dict): Dictionary of images to be saved.
+            images (list): List of dictionaries of images to be saved.
+                example: [{"rgb_front": <image_array>, "bev": <image_array>, ...}, ...]
+            image_metas (dict): Dictionary of image metadata.
+                'scenario': Name of the scenario
+                'frame_id': Frame identifier
             output_dir (str): Directory where images will be saved.
         """
-        if images is None:
-            print("No images to save.")
-            return
-
+        # Create the output directory if it does not exist
         os.makedirs(output_dir, exist_ok=True)
-        for cam_name, image in images.items():
-            if image is None:
-                continue
-            output_path = os.path.join(output_dir, f"{cam_name}.png")
-            cv2.imwrite(output_path, image)
-            print(f"Visualization saved at: {output_path}")
 
-    def generate_video(self, images):
+        # # Save each image to the output directory
+        for i, image in enumerate(images):
+            scenario = image_metas[i]["scenario"]
+            frame_id = image_metas[i]["frame_id"]
+
+            for cam_name, cam_image in image.items():
+                # Create a subdirectory for the scenario
+                sub_dir = os.path.join(output_dir, scenario, cam_name)
+                os.makedirs(sub_dir, exist_ok=True)
+
+                img_path = os.path.join(sub_dir, f"{cam_name}_{frame_id}.png")
+                cv2.imwrite(img_path, cam_image)
+
+    def generate_video(self, images, image_metas):
         """
         Generate a video from a list of images.
 
@@ -130,7 +141,7 @@ class Visualizer:
             return
 
         # Initialize the video generator
-        video_gen = VideoGenerator(self._config.video.fps, self._config.video.output_path)
+        video_gen = VideoGenerator(self._config.video)
 
         # Generate the video
         video_gen.generate(images)
