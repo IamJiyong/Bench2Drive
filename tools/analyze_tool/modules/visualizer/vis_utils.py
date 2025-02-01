@@ -101,11 +101,12 @@ class VideoGenerator:
 def draw_bounding_boxes(
     image,
     boxes,
+    cam_name,
     labels=None,
     color=(255, 0, 0),
     thickness=2,
     camera_matrix=None,
-    extrinsic_matrix=None
+    extrinsic_matrix=None,
 ):
     """
     Draw 3D bounding boxes on the given image, transforming from 3D world coordinates if necessary.
@@ -135,12 +136,8 @@ def draw_bounding_boxes(
     use_projection = (camera_matrix is not None) and (extrinsic_matrix is not None)
 
     if use_projection:
-        rotation_matrix = extrinsic_matrix[:3, :3]
-        translation_vector = extrinsic_matrix[:3, 3]
-
-        # Convert rotation matrix to rotation vector (Rodrigues representation)
-        rvec, _ = cv2.Rodrigues(rotation_matrix)
-        tvec = translation_vector.reshape(-1, 1)
+        rvec = extrinsic_matrix[:3, :3]
+        tvec = extrinsic_matrix[:3, 3]
 
     # Predefined edges for connecting the 8 corners of the 3D box
     edges = [
@@ -159,7 +156,11 @@ def draw_bounding_boxes(
 
         # Project corners if camera parameters are provided
         if use_projection:
-            corners_2d = [project_3d_to_2d(corner, camera_matrix, rvec, tvec) for corner in box_3d]
+            # If camera is "bev", swap x and y coordinates TODO: hard-coded
+            if cam_name == "bev":
+                box_3d[:,:2] = -box_3d[:,:2]
+                box_3d = box_3d[:, [1, 0, 2]]
+            corners_2d = project_3d_to_2d(box_3d, camera_matrix, rvec, tvec, filter_behind=False)
         else:
             # If no camera parameters are given, assume the box is already in 2D somehow.
             # (Typically, you'd have camera data for a 3D box, but we handle the fallback.)
@@ -191,7 +192,7 @@ def draw_bounding_boxes(
     return image
 
 
-def project_3d_to_2d(points_3d, intrinsic_matrix, rvec, tvec):
+def project_3d_to_2d(points_3d, intrinsic_matrix, rvec, tvec, filter_behind=True):
     """
     Projects 3D world coordinates to 2D image coordinates.
 
@@ -212,7 +213,8 @@ def project_3d_to_2d(points_3d, intrinsic_matrix, rvec, tvec):
     transformed_points = np.dot(rvec, points_3d[:, :3].T).T + tvec
 
     # Filter out points behind the camera
-    transformed_points = transformed_points[transformed_points[:, 2] > 0]
+    if filter_behind:
+        transformed_points = transformed_points[transformed_points[:, 2] > 0]
 
     # Convert to homogeneous coordinates (Nx4)
     transformed_points = np.hstack((transformed_points, np.ones((transformed_points.shape[0], 1))))
@@ -274,17 +276,16 @@ def overlay_trajectory(cam_name, image, trajectory, intrinsic_matrix=None, extri
     if intrinsic_matrix is not None and extrinsic_matrix is not None:
         rvec = extrinsic_matrix[:3, :3]
         tvec = extrinsic_matrix[:3, 3]
+        # If camera is "bev", swap x and y coordinates. TODO: hard-coded
+        if cam_name == "bev":
+            trajectory[:,:2] = -trajectory[:,:2]
+            trajectory = trajectory[:, [1, 0, 2]]
         trajectory = project_3d_to_2d(np.array(trajectory), intrinsic_matrix, rvec, tvec)
 
-    # If camera is "bev", swap x and y coordinates
-    if cam_name == "bev":
-        trajectory = [(y, x) for x, y in trajectory]
-
     # Filter out points that are outside the image boundaries
-    # trajectory = [(x, y) for x, y in trajectory if 0 <= x < img_w and 0 <= y < img_h]
+    trajectory = [(x, y) for x, y in trajectory if 0 <= x < img_w and 0 <= y < img_h]
     
     if len(trajectory) < 2:
-        print("No valid trajectory points within image bounds.")
         return image
     
     trajectory = monotonic_spline(trajectory, num_points=100)

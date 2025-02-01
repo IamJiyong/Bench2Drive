@@ -70,31 +70,44 @@ class Visualizer:
             # Overlay different visualization elements based on the specified vis_elements
             for element in self.vis_elements:
                 if element == "planned_trajectory":
+                    # Load the planned trajectory from the model output and add z-coordinate (0)
+                    waypoints_2d = np.array(model_output["plan"], dtype=np.float32)
+                    # TODO: hard-coded z-value (1.6) for now
+                    waypoints_3d = np.hstack((waypoints_2d, np.ones((waypoints_2d.shape[0], 1), dtype=np.float32) * (-1.6)))
+
                     # Overlay the planned trajectory
                     image = vis_utils.overlay_trajectory(
                         cam_name,
                         image,
-                        model_output.get("plan", []),
+                        waypoints_3d,
                         intrinsic_matrix,
                         extrinsic_matrix,
                     )
                 elif element == "predicted_trajectory":
                     # Overlay the predicted trajectory
-                    image = vis_utils.overlay_trajectory(
-                        cam_name,
-                        image,
-                        model_output.get("trajectory", []),
-                        intrinsic_matrix,
-                        extrinsic_matrix
-                    )
+                    waypoints_2d = np.array(model_output["trajectories"], dtype=np.float32)
+                    waypoints_2d = waypoints_2d.reshape(-1, waypoints_2d.shape[-2], 2)
+
+                    num_traj = waypoints_2d.shape[0]
+                    for i in range(num_traj):
+                        waypoints_3d = np.hstack((waypoints_2d[i], np.ones((waypoints_2d[i].shape[0], 1), dtype=np.float32) * (-1.6)))
+                        image = vis_utils.overlay_trajectory(
+                            cam_name,
+                            image,
+                            waypoints_3d,
+                            intrinsic_matrix,
+                            extrinsic_matrix,
+                        )
+
                 elif element == "bbox_3d":
                     # Draw bounding boxes
                     boxes_corners = model_output.get("boxes_corners", [])
                     image = vis_utils.draw_bounding_boxes(
                         image,
                         boxes_corners,
+                        cam_name=cam_name,
                         camera_matrix=intrinsic_matrix,
-                        extrinsic_matrix=extrinsic_matrix
+                        extrinsic_matrix=extrinsic_matrix,
                     )
             
             # Update the processed image in the dictionary
