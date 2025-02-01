@@ -70,14 +70,16 @@ class Visualizer:
                 if element == "planned_trajectory":
                     # Overlay the planned trajectory
                     image = vis_utils.overlay_trajectory(
+                        cam_name,
                         image,
                         model_output.get("plan", []),
                         intrinsic_matrix,
-                        extrinsic_matrix
+                        extrinsic_matrix,
                     )
                 elif element == "predicted_trajectory":
                     # Overlay the predicted trajectory
                     image = vis_utils.overlay_trajectory(
+                        cam_name,
                         image,
                         model_output.get("trajectory", []),
                         intrinsic_matrix,
