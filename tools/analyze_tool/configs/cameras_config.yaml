@@ -10,7 +10,7 @@ rgb_front:
   extrinsic_matrix: 
     - [1.0,  0.0,  0.0,  0.00]  
     - [0.0,  0.0,  -1.0,  0.00]  
-    - [0.0,  1.0,  0.0,  0.80]  
+    - [0.0,  1.0,  0.0,  0.00]  
     - [0.0,  0.0,  0.0,  1.00] 
   distortion_coeffs: [0.0, 0.0, 0.0, 0.0, 0.0]
   pose:  # Camera Pose (Extrinsic)
@@ -51,14 +51,14 @@ rgb_back:
   fov: 110
   # need to change rgb_back intrinsic matrix (fov is wider than rgb_front)
   intrinsic_matrix: 
-    fx: 1142.5184
-    fy: 1142.5184
+    fx: 560.1660
+    fy: 560.1660
     cx: 800.0
     cy: 450.0
   extrinsic_matrix: 
     - [-1.0,  0.0,  0.0,  0.00]  
-    - [ 0.0,  0.0, -1.0,  1.60]  
-    - [ 0.0, -1.0,  0.0,  -2.0]  
+    - [ 0.0,  0.0, -1.0,  0.00]  
+    - [ 0.0, -1.0,  0.0,  0.0]  
     - [ 0.0,  0.0,  0.0,  1.00] 
   distortion_coeffs: [0.0, 0.0, 0.0, 0.0, 0.0]
   pose:  # Camera Pose (Extrinsic)
