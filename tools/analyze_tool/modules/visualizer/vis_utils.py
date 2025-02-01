@@ -256,7 +256,7 @@ def monotonic_spline(points, num_points=100):
 
     return np.column_stack((x_new, y_new))
 
-def overlay_trajectory(image, trajectory, intrinsic_matrix=None, extrinsic_matrix=None):
+def overlay_trajectory(cam_name, image, trajectory, intrinsic_matrix=None, extrinsic_matrix=None):
     """
     Overlay a trajectory (sequence of points) on the given image, transforming from 3D world coordinates if necessary.
 
@@ -275,7 +275,11 @@ def overlay_trajectory(image, trajectory, intrinsic_matrix=None, extrinsic_matri
         rvec = extrinsic_matrix[:3, :3]
         tvec = extrinsic_matrix[:3, 3]
         trajectory = project_3d_to_2d(np.array(trajectory), intrinsic_matrix, rvec, tvec)
-    
+
+    # If camera is "bev", swap x and y coordinates
+    if cam_name == "bev":
+        trajectory = [(y, x) for x, y in trajectory]
+
     # Filter out points that are outside the image boundaries
     # trajectory = [(x, y) for x, y in trajectory if 0 <= x < img_w and 0 <= y < img_h]
     
@@ -283,18 +287,18 @@ def overlay_trajectory(image, trajectory, intrinsic_matrix=None, extrinsic_matri
         print("No valid trajectory points within image bounds.")
         return image
     
-    trajectory = monotonic_spline(trajectory, num_points=500)
+    trajectory = monotonic_spline(trajectory, num_points=100)
 
     y_coords = np.array([pt[1] for pt in trajectory])
     min_y, max_y = y_coords.min(), min(y_coords.max(), img_h)
 
     for i in range(len(trajectory) - 1):
+
         pt1 = (int(trajectory[i][0]), int(trajectory[i][1]))
         pt2 = (int(trajectory[i + 1][0]), int(trajectory[i + 1][1]))
 
         intensity = int(255 * (trajectory[i][1] - min_y) / (max_y - min_y))
         color = (255, 255 - intensity, 0)  # Light blue with intensity variation
-
         cv2.line(image, pt1, pt2, color=color, thickness=4)
     
     return image

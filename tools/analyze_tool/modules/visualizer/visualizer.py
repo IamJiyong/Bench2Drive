@@ -16,7 +16,7 @@ from .vis_utils import VideoGenerator
 from .camera_calibration import load_camera_config
 
 class Visualizer:
-    def __init__(self, config, cameras):
+    def __init__(self, config, cameras_config):
         """
         Initialize the Visualizer with the given configuration and camera parameters.
 
@@ -26,15 +26,15 @@ class Visualizer:
         """
         self._config = config
         self.vis_elements = config.elements
-        self.cameras = cameras  # Store camera configurations
+        self.cameras_config = cameras_config  # Store camera configurations
         self.camera_matrices = self._load_camera_matrices()
 
 
     def _load_camera_matrices(self):
         """Load intrinsic and extrinsic matrices for all cameras."""
         camera_matrices = {}
-        for cam_name in self.cameras:
-            intrinsic, extrinsic = load_camera_config(self.cameras, cam_name)
+        for cam_name in self.cameras_config:
+            intrinsic, extrinsic = load_camera_config(self.cameras_config, cam_name)
             camera_matrices[cam_name] = {
                 "intrinsic": intrinsic,
                 "extrinsic": extrinsic
@@ -72,14 +72,16 @@ class Visualizer:
                 if element == "planned_trajectory":
                     # Overlay the planned trajectory
                     image = vis_utils.overlay_trajectory(
+                        cam_name,
                         image,
                         model_output.get("plan", []),
                         intrinsic_matrix,
-                        extrinsic_matrix
+                        extrinsic_matrix,
                     )
                 elif element == "predicted_trajectory":
                     # Overlay the predicted trajectory
                     image = vis_utils.overlay_trajectory(
+                        cam_name,
                         image,
                         model_output.get("trajectory", []),
                         intrinsic_matrix,
