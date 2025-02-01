@@ -16,7 +16,7 @@ from .vis_utils import VideoGenerator
 from .camera_calibration import load_camera_config
 
 class Visualizer:
-    def __init__(self, config, cameras):
+    def __init__(self, config, cameras_config):
         """
         Initialize the Visualizer with the given configuration and camera parameters.
 
@@ -26,14 +26,14 @@ class Visualizer:
         """
         self._config = config
         self.vis_elements = config.elements
-        self.cameras = cameras  # Store camera configurations
+        self.cameras_config = cameras_config  # Store camera configurations
         self.camera_matrices = self._load_camera_matrices()
 
     def _load_camera_matrices(self):
         """Load intrinsic and extrinsic matrices for all cameras."""
         camera_matrices = {}
-        for cam_name in self.cameras:
-            intrinsic, extrinsic = load_camera_config(self.cameras, cam_name)
+        for cam_name in self.cameras_config:
+            intrinsic, extrinsic = load_camera_config(self.cameras_config, cam_name)
             camera_matrices[cam_name] = {
                 "intrinsic": intrinsic,
                 "extrinsic": extrinsic
@@ -106,19 +106,39 @@ class Visualizer:
 
         Args:
             images (dict): Dictionary of images to be saved.
-            output_dir (str): Directory where images will be saved.
+            output_dir (str): Base directory where images will be saved.
         """
         if images is None:
             print("No images to save.")
             return
 
-        os.makedirs(output_dir, exist_ok=True)
-        for cam_name, image in images.items():
-            if image is None:
+        os.makedirs(output_dir, exist_ok=True)  # Ensure base output directory exists
+
+        # Dictionary to track the frame index per camera
+        frame_counters = {cam_name: 0 for cam_name in images.keys()}
+
+        for cam_name, image_list in images.items():
+            if not isinstance(image_list, list) or len(image_list) == 0:
                 continue
-            output_path = os.path.join(output_dir, f"{cam_name}.png")
-            cv2.imwrite(output_path, image)
-            print(f"Visualization saved at: {output_path}")
+
+            # Define per-camera subdirectory
+            cam_output_dir = os.path.join(output_dir, cam_name)
+            os.makedirs(cam_output_dir, exist_ok=True)  # Ensure camera-specific directory exists
+
+            for image in image_list:
+                if image is None:
+                    continue
+
+                # Generate file name based on per-camera frame counter
+                output_path = os.path.join(cam_output_dir, f"{frame_counters[cam_name]:04d}.png")
+                
+                # Save image
+                cv2.imwrite(output_path, image)
+                print(f"Visualization saved at: {output_path}")
+
+                # Increment frame counter for this camera
+                frame_counters[cam_name] += 1
+
 
     def generate_video(self, images):
         """

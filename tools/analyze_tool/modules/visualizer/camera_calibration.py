@@ -41,24 +41,21 @@ def compute_extrinsic_matrix(sensor_pose, ego_pose=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0
     return adjust_matrix @ np.linalg.inv(sensor_extrinsic)
 
 
-def load_camera_config(yaml_path, camera_name):
+def load_camera_config(cameras_config, camera_name):
     """
     Load camera intrinsic and extrinsic parameters for a specific camera.
     
     Args:
-        yaml_path (str): Path to the YAML configuration file.
+        cameras_config (dict): Dictionary containing all camera configurations.
         camera_name (str): Camera name to load parameters for (e.g., "rgb_front" or "bev").
     
     Returns:
         tuple: (intrinsic_matrix, extrinsic_matrix)
     """
-    with open(yaml_path, "r") as file:
-        camera_data = yaml.safe_load(file)
+    if camera_name not in cameras_config:
+        raise ValueError(f"❌ Camera '{camera_name}' not found in configuration.")
 
-    if camera_name not in camera_data:
-        raise ValueError(f"X Camera '{camera_name}' not found in configuration.")
-
-    cam_data = camera_data[camera_name]
+    cam_data = cameras_config[camera_name]
 
     # Load Intrinsic Matrix
     intrinsic_matrix = np.array([
@@ -69,9 +66,9 @@ def load_camera_config(yaml_path, camera_name):
 
     # Load Extrinsic Matrix (use predefined values if available, otherwise compute)
     if "extrinsic_matrix" in cam_data:
-        extrinsic_matrix = np.array(cam_data["extrinsic_matrix"])
+        extrinsic_matrix = np.array(cam_data["extrinsic_matrix"], dtype=np.float64)
     else:
-        # Compute Extrinsic from pose
+        # Compute Extrinsic from pose if not explicitly defined
         pose = cam_data['pose']
         sensor_pose = [pose['x'], pose['y'], pose['z'], pose['roll'], pose['pitch'], pose['yaw']]
         extrinsic_matrix = compute_extrinsic_matrix(sensor_pose)

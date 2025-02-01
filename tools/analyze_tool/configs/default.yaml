@@ -1,5 +1,5 @@
 # default.yaml
-cameras: "configs/cameras_config.yaml"
+cameras: "/workspace/Bench2Drive/tools/analyze_tool/configs/cameras_config.yaml"
 
 dataloader_config:
   base_path: "/workspace/Bench2Drive/eval_v1"
