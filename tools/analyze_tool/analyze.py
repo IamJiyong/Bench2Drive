@@ -45,7 +45,7 @@ def main():
     results = analyzer.analyze()
 
     # 6. Save or output the results
-    analyzer.save_results(results, config.data.output_path)
+    analyzer.save_results(results, config.dataloader_config.output_path)
 
 if __name__ == "__main__":
     main()

@@ -20,7 +20,7 @@ visualizer_config:
     - rgb_front
     - bev
 
-  output_video: true  # whether to generate video
+  output_video: false  # whether to generate video
   video_generator:
     # Output path for generated video
     output_path: "analysis_video.mp4"
@@ -31,4 +31,5 @@ visualizer_config:
   elements:
     # - planned_trajectory
     # - predicted_trajectory
-    - bounding_box
+    - bbox_3d
+    # - bbox_bev

@@ -98,38 +98,98 @@ class VideoGenerator:
         return image
 
 
-def draw_bounding_boxes(image, boxes, labels=None, color=(255, 0, 0), thickness=2, camera_matrix=None, extrinsic_matrix=None):
+def draw_bounding_boxes(
+    image,
+    boxes,
+    labels=None,
+    color=(255, 0, 0),
+    thickness=2,
+    camera_matrix=None,
+    extrinsic_matrix=None
+):
     """
-    Draw bounding boxes on the given image, transforming from 3D world coordinates if necessary.
+    Draw 3D bounding boxes on the given image, transforming from 3D world coordinates if necessary.
+
+    This function expects each bounding box to be represented by 8 corner points in 3D:
+    (x0, y0, z0), (x0, y0, z1), ..., (x1, y1, z0).
 
     Args:
         image (numpy.ndarray): The image on which to draw.
-        boxes (list): A list of bounding box coordinates in either 2D (x_min, y_min, x_max, y_max) or 3D.
+        boxes (list): A list of 8x3 array-like elements, each representing the 8 corners
+                      of a 3D bounding box in world coordinates.
         labels (list, optional): A list of labels for each bounding box. Defaults to None.
-        color (tuple, optional): The color of the bounding box in BGR format. Defaults to (255, 0, 0).
-        thickness (int, optional): The thickness of the bounding box lines. Defaults to 2.
-        camera_matrix (numpy.ndarray, optional): Camera intrinsic matrix.
-        extrinsic_matrix (numpy.ndarray, optional): Camera extrinsic transformation matrix.
+        color (tuple, optional): The color of the bounding box lines in BGR. Defaults to (255, 0, 0).
+        thickness (int, optional): Line thickness for drawing. Defaults to 2.
+        camera_matrix (numpy.ndarray, optional): The camera intrinsic matrix (3x3).
+        extrinsic_matrix (numpy.ndarray, optional): The camera extrinsic transformation matrix (4x4).
+            - The top-left 3x3 portion is the rotation matrix.
+            - The rightmost 3x1 portion is the translation vector.
+
+    Returns:
+        numpy.ndarray: The image with bounding boxes drawn on it.
     """
     if boxes is None or len(boxes) == 0:
-        return
+        return image
 
-    if camera_matrix is not None and extrinsic_matrix is not None:
-        rvec = extrinsic_matrix[:3, :3]
-        tvec = extrinsic_matrix[:3, 3]
-        transformed_boxes = []
-        for box in boxes:
-            projected_box = project_3d_to_2d(np.array(box), camera_matrix, rvec, tvec)
-            transformed_boxes.append(projected_box.flatten())
-        boxes = transformed_boxes
+    # Determine whether we should perform 3D-to-2D projection
+    use_projection = (camera_matrix is not None) and (extrinsic_matrix is not None)
 
-    for i, box in enumerate(boxes):
-        x_min, y_min, x_max, y_max = map(int, box)
-        cv2.rectangle(image, (x_min, y_min), (x_max, y_max), color, thickness)
+    if use_projection:
+        rotation_matrix = extrinsic_matrix[:3, :3]
+        translation_vector = extrinsic_matrix[:3, 3]
+
+        # Convert rotation matrix to rotation vector (Rodrigues representation)
+        rvec, _ = cv2.Rodrigues(rotation_matrix)
+        tvec = translation_vector.reshape(-1, 1)
+
+    # Predefined edges for connecting the 8 corners of the 3D box
+    edges = [
+        (0, 1), (1, 2), (2, 3), (3, 0),  # bottom rectangle
+        (4, 5), (5, 6), (6, 7), (7, 4),  # top rectangle
+        (0, 4), (1, 5), (2, 6), (3, 7)   # vertical connectors
+    ]
+
+    for i, box_3d in enumerate(boxes):
+        box_3d = np.array(box_3d, dtype=np.float32)
+
+        # Validate that the box has shape (8, 3)
+        if box_3d.shape != (8, 3):
+            print(f"Warning: Unrecognized bounding box shape: {box_3d.shape}")
+            continue
+
+        # Project corners if camera parameters are provided
+        if use_projection:
+            corners_2d = [project_3d_to_2d(corner, camera_matrix, rvec, tvec) for corner in box_3d]
+        else:
+            # If no camera parameters are given, assume the box is already in 2D somehow.
+            # (Typically, you'd have camera data for a 3D box, but we handle the fallback.)
+            corners_2d = box_3d[:, :2]
+
+        corners_2d = np.array(corners_2d, dtype=np.int32)
+
+        # Draw lines between the projected corners
+        for start_idx, end_idx in edges:
+            p1 = tuple(corners_2d[start_idx])
+            p2 = tuple(corners_2d[end_idx])
+            cv2.line(image, p1, p2, color, thickness)
+
+        # If labels are provided, put text near the first corner
         if labels is not None and i < len(labels):
-            label = labels[i]
-            cv2.putText(image, str(label), (x_min, y_min - 5),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+            label = str(labels[i])
+            label_pos = tuple(corners_2d[0])
+            cv2.putText(
+                image,
+                label,
+                (label_pos[0], label_pos[1] - 5),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                color,
+                1,
+                cv2.LINE_AA
+            )
+
+    return image
+
 
 def project_3d_to_2d(points_3d, intrinsic_matrix, rvec, tvec):
     """

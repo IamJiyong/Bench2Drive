@@ -37,6 +37,7 @@ class Dataloader:
         # Collect all frames (scenario, frame_id) pairs in a sorted manner
         self.frames = self._get_sorted_frames()
 
+
     def _get_sorted_frames(self):
         """
         Gather and return all frame IDs from each scenario folder, 
@@ -82,6 +83,7 @@ class Dataloader:
 
         return frame_ids
 
+
     def get_next_frame(self):
         """
         Generator that yields one frame of data at a time from each scenario. 
@@ -91,6 +93,7 @@ class Dataloader:
             dict: A dictionary with the structure:
                   {
                       "scenario": <scenario_name>,
+                      "frame_id": <frame_id>,
                       "image": {
                           <camera_name_1>: <image_array_or_None>,
                           <camera_name_2>: <image_array_or_None>,
@@ -102,6 +105,7 @@ class Dataloader:
                       }
                   }
                   - "scenario": Name of the scenario the frame belongs to
+                  - "frame_id": Identifier for the current frame
                   - "image": A sub-dictionary of camera images
                   - "model_output": A sub-dictionary of loaded metadata from JSON / pickle
         """
@@ -109,6 +113,7 @@ class Dataloader:
             # Initialize dictionary for the current frame
             frame_data = {
                 "scenario": scenario,
+                "frame_id": frame_id,
                 "image": {},
                 "model_output": {}
             }
@@ -141,3 +146,10 @@ class Dataloader:
 
             # Yield the populated frame data as a generator
             yield frame_data
+
+
+    def save_data(self, data):
+        """
+        data가 image의 list이면 
+        """
+
