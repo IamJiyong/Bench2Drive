@@ -8,13 +8,6 @@ from vis_utils import overlay_trajectory
 def compute_extrinsic_matrix(position, rotation):
     """
     차량 좌표계를 카메라 좌표계로 변환하는 Extrinsic Matrix를 계산하는 함수
-
-    Args:
-        position (tuple): (x, y, z) - 월드 좌표계에서의 카메라 위치
-        rotation (tuple): (roll, pitch, yaw) - 월드 좌표계에서의 회전 (각도 단위: degrees)
-
-    Returns:
-        numpy.ndarray: 4x4 extrinsic transformation matrix
     """
     roll, pitch, yaw = np.radians(rotation)
     rot_matrix = R.from_euler('xyz', [roll, pitch, yaw]).as_matrix()
@@ -35,13 +28,7 @@ def compute_extrinsic_matrix(position, rotation):
 
 def extract_waypoints(json_path):
     """
-    JSON 파일에서 'plan' 필드에 해당하는 waypoints를 읽어와 (x, y, z) 형태로 변환하는 함수
-
-    Args:
-        json_path (str): JSON 파일 경로
-
-    Returns:
-        np.ndarray: Nx3 형태의 numpy 배열 (waypoints) - (x, y, z), z는 0으로 추가됨
+    JSON 파일에서 'plan' 필드에 해당하는 waypoints를 읽어오는 함수
     """
     try:
         with open(json_path, "r") as file:
@@ -58,16 +45,22 @@ def extract_waypoints(json_path):
         print(f"❌ Error loading JSON file: {e}")
         return None
 
-def display_trajectory_sequence(camera_type, image_folder, json_folder, intrinsic_matrix, extrinsic_matrix):
+def process_trajectory_sequence(camera_type, image_folder, json_folder, intrinsic_matrix, extrinsic_matrix, output_dir):
     """
-    주어진 폴더에서 연속된 이미지와 JSON 데이터를 로드하여 trajectory를 시각화하고 연속적으로 표시하는 함수.
+    이미지와 JSON 데이터를 로드하여 trajectory를 시각화한 후 저장하는 함수.
 
     Args:
+        camera_type (str): "rgb_front" 또는 "bev"
         image_folder (str): 이미지 파일이 있는 폴더 경로.
         json_folder (str): JSON 파일이 있는 폴더 경로.
         intrinsic_matrix (numpy.ndarray): 카메라 내부 행렬.
         extrinsic_matrix (numpy.ndarray): 카메라 외부 행렬.
+        output_dir (str): 결과 이미지를 저장할 폴더 경로.
     """
+    # 저장할 폴더 생성 (존재하지 않으면 생성)
+    output_cam_dir = os.path.join(output_dir, camera_type)
+    os.makedirs(output_cam_dir, exist_ok=True)
+
     frame_ids = sorted([f.split(".")[0] for f in os.listdir(image_folder) if f.endswith(".png")])
 
     for frame_id in frame_ids:
@@ -88,16 +81,13 @@ def display_trajectory_sequence(camera_type, image_folder, json_folder, intrinsi
             print(f"❌ Error: Could not load image from {image_path}. Skipping...")
             continue
 
+        # Trajectory Overlay 적용
         output_image = overlay_trajectory(camera_type, image, trajectory, intrinsic_matrix=intrinsic_matrix, extrinsic_matrix=extrinsic_matrix)
 
-        cv2.imshow("Trajectory Visualization", output_image)
-        key = cv2.waitKey(500)  # 30ms 딜레이 후 다음 프레임으로 이동
-
-        if key == 27:  # ESC 키를 누르면 종료
-            print("🚪 ESC pressed. Exiting...")
-            break
-
-    cv2.destroyAllWindows()
+        # 이미지 저장
+        output_path = os.path.join(output_cam_dir, f"{frame_id}.png")
+        cv2.imwrite(output_path, output_image)
+        print(f"✅ Saved: {output_path}")
 
 if __name__ == "__main__":
     # 설정 가능한 카메라 타입: "rgb_front" 또는 "bev"
@@ -106,6 +96,9 @@ if __name__ == "__main__":
     # 기본 경로 설정
     base_path = "/home/ysh/jiyong/b2d_carla/Bench2Drive/eval_v1/RouteScenario_2082_rep0_Town12_OppositeVehicleRunningRedLight_1_22_01_31_01_13_50/"
     json_folder = os.path.join(base_path, "meta")
+
+    # 결과 저장 폴더
+    output_dir = "/home/ysh/jiyong/b2d_carla/Bench2Drive/eval_results_calibration_debug"
 
     # 카메라 타입에 따른 설정 적용
     if camera_type == "rgb_front":
@@ -116,11 +109,11 @@ if __name__ == "__main__":
             [0, 0, 1]
         ])
         extrinsic_matrix = np.array([
-            [1.0, -0.0, 0.0, 0.0], 
-            [0.0, 0.0, -1.0, 1.6], 
-            [0.0, 1.0, 0.0, 0.0], 
+            [1.0, 0.0, 0.0, 0.0], 
+            [0.0, 0.0, -1.0, 3.2], 
+            [0.0, 1.0, 0.0, 0.8], 
             [0.0, 0.0, 0.0, 1.0]
-            ])
+        ])
         camera_position = (0.0, 0.0, 1.6)  # 차량 앞쪽 카메라 위치
         camera_rotation = (0, 0, 0)  # 정면 방향
 
@@ -137,32 +130,16 @@ if __name__ == "__main__":
     else:
         raise ValueError(f"❌ Unsupported camera type: {camera_type}")
 
-    # Extrinsic Matrix 계산
-    # extrinsic_matrix = compute_extrinsic_matrix(camera_position, camera_rotation)
-    
+    # BEV Extrinsic Matrix 설정 (필요하면 적용)
     if camera_type == "bev":
-        # Unreal 좌표계를 OpenCV 좌표계로 변환
-        extrinsic_matrix = np.array([
-            [0.0, -0.0, -1.0, 50.0], 
-            [0.0, 1.0, -0.0, 0.0], 
-            [1.0, -0.0, 0.0, -0.0], 
-            [0.0, 0.0, 0.0, 1.0]
-            ])
-        
-        unreal2cam = np.array([
-            [0, -1, 0, 0], 
-            [0, 0, 1, 0], 
-            [1, 0, 0, 0], 
-            [0, 0, 0, 1]
-        ])
-        extrinsic_matrix = np.dot(unreal2cam, extrinsic_matrix)
         extrinsic_matrix = np.array([
             [0.0, -1.0, 0.0, 0.0], 
             [1.0, 0.0, 0.0, 0.0], 
             [0.0, 0.0, -1.0, 50.0], 
             [0.0, 0.0, 0.0, 1.0]
-            ])
-    print(extrinsic_matrix)
-    # 실행 - 연속적인 trajectory 표시
-    display_trajectory_sequence(camera_type, image_folder, json_folder, intrinsic_matrix, extrinsic_matrix)
+        ])
 
+    print(extrinsic_matrix)
+
+    # 실행 - trajectory 결과를 특정 폴더에 저장
+    process_trajectory_sequence(camera_type, image_folder, json_folder, intrinsic_matrix, extrinsic_matrix, output_dir)

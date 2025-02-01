@@ -5,7 +5,7 @@ dataloader_config:
   base_path: "/workspace/Bench2Drive/eval_v1"
   # scenearios: "all"
   scenarios:
-    - "RouteScenario_3074_rep0_Town12_HighwayCutIn_1_0_01_30_09_19_14"
+    - "RouteScenario_2273_rep0_Town12_MergerIntoSlowTraffic_1_5_01_31_12_28_51"
   output_path: "/workspace/Bench2Drive/eval_v1_output"
 
 analyze_config:
@@ -19,6 +19,7 @@ visualizer_config:
   cameras:
     - rgb_front
     - bev
+    - rgb_back
 
   output_video: false  # whether to generate video
   video_generator:
@@ -29,7 +30,7 @@ visualizer_config:
 
   # Which elements to visualize (list of strings)
   elements:
-    # - planned_trajectory
+    - planned_trajectory
     # - predicted_trajectory
     - bbox_3d
     # - bbox_bev
