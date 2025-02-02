@@ -95,7 +95,7 @@ class DefaultAnalyzer:
                 image_metas,
                 )
             output = (video, None)
-        else:
+        if self._visualizer._config.output_images:
             output = (vis_images, image_metas)
 
         return output
