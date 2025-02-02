@@ -258,7 +258,7 @@ def monotonic_spline(points, num_points=100):
 
     return np.column_stack((x_new, y_new))
 
-def overlay_trajectory(cam_name, image, trajectory, intrinsic_matrix=None, extrinsic_matrix=None):
+def overlay_trajectory(cam_name, element, image, trajectory, intrinsic_matrix=None, extrinsic_matrix=None):
     """
     Overlay a trajectory (sequence of points) on the given image, transforming from 3D world coordinates if necessary.
 
@@ -272,6 +272,8 @@ def overlay_trajectory(cam_name, image, trajectory, intrinsic_matrix=None, extri
         return image
     
     img_h, img_w = image.shape[:2]  # Get image dimensions
+
+    trajectory = np.vstack([[0, 0, 0], trajectory]) # Add (0,0,0)
     
     if intrinsic_matrix is not None and extrinsic_matrix is not None:
         rvec = extrinsic_matrix[:3, :3]
@@ -283,15 +285,19 @@ def overlay_trajectory(cam_name, image, trajectory, intrinsic_matrix=None, extri
         trajectory = project_3d_to_2d(np.array(trajectory), intrinsic_matrix, rvec, tvec)
 
     # Filter out points that are outside the image boundaries
-    trajectory = [(x, y) for x, y in trajectory if 0 <= x < img_w and 0 <= y < img_h]
+    # trajectory = [(x, y) for x, y in trajectory if 0 <= x < img_w and 0 <= y < img_h]
     
     if len(trajectory) < 2:
         return image
     
-    trajectory = monotonic_spline(trajectory, num_points=100)
+    trajectory = monotonic_spline(trajectory, num_points=500)
+
+    # Set curve thickness
+    trajectory_thickness = set_trajectory_thickness(cam_name, element)
 
     y_coords = np.array([pt[1] for pt in trajectory])
     min_y, max_y = y_coords.min(), min(y_coords.max(), img_h)
+    
 
     for i in range(len(trajectory) - 1):
 
@@ -299,12 +305,23 @@ def overlay_trajectory(cam_name, image, trajectory, intrinsic_matrix=None, extri
         pt2 = (int(trajectory[i + 1][0]), int(trajectory[i + 1][1]))
 
         intensity = int(255 * (trajectory[i][1] - min_y) / (max_y - min_y))
-        color = (255, 255 - intensity, 0)  # Light blue with intensity variation
-        cv2.line(image, pt1, pt2, color=color, thickness=4)
+        if element == "planned_trajectory":
+            color = (255, 255 - intensity, 0)  # Light blue with intensity variation
+        elif element == "predicted_trajectory":
+            color = (0, 255 - intensity, 255)
+        cv2.line(image, pt1, pt2, color=color, thickness=trajectory_thickness)
     
     return image
 
-
+def set_trajectory_thickness(cam_name, element):
+    if cam_name == "bev" and element == "predicted_trajectory":
+        thickness = 2
+    elif cam_name == "bev" and element == "planned_trajectory":
+        thickness = 2
+    else:
+        thickness = 4
+    
+    return thickness
 
 def colorize_segmentation(mask):
     """

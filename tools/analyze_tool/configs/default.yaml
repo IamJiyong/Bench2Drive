@@ -2,7 +2,7 @@
 cameras: "/workspace/Bench2Drive/tools/analyze_tool/configs/cameras_config.yaml"
 
 dataloader_config:
-  base_path: "/workspace/Bench2Drive/eval_v1"
+  base_path: "/workspace/Bench2Drive/eval_v1_uniad"
   # scenearios: "all"
   scenarios:
     - "RouteScenario_2273_rep0_Town12_MergerIntoSlowTraffic_1_5_01_31_12_28_51"
@@ -30,7 +30,7 @@ visualizer_config:
 
   # Which elements to visualize (list of strings)
   elements:
-    - planned_trajectory
     # - predicted_trajectory
+    - planned_trajectory
     - bbox_3d
     # - bbox_bev
