@@ -156,11 +156,15 @@ def draw_bounding_boxes(
 
         # Project corners if camera parameters are provided
         if use_projection:
-            # If camera is "bev", swap x and y coordinates TODO: hard-coded
+            # If camera is "bev", swap x and y coordinates
+            # TODO: hard-coded
             if cam_name == "bev":
                 box_3d[:,:2] = -box_3d[:,:2]
                 box_3d = box_3d[:, [1, 0, 2]]
-            corners_2d = project_3d_to_2d(box_3d, camera_matrix, rvec, tvec, filter_behind=False)
+            corners_2d, behind_mask = project_3d_to_2d(box_3d, camera_matrix, rvec, tvec, return_behind_mask=True)
+            # Skip drawing if all corners are behind the camera
+            if np.all(behind_mask):
+                continue
         else:
             # If no camera parameters are given, assume the box is already in 2D somehow.
             # (Typically, you'd have camera data for a 3D box, but we handle the fallback.)
@@ -192,7 +196,7 @@ def draw_bounding_boxes(
     return image
 
 
-def project_3d_to_2d(points_3d, intrinsic_matrix, rvec, tvec, filter_behind=True):
+def project_3d_to_2d(points_3d, intrinsic_matrix, rvec, tvec, return_behind_mask=False):
     """
     Projects 3D world coordinates to 2D image coordinates.
 
@@ -213,8 +217,9 @@ def project_3d_to_2d(points_3d, intrinsic_matrix, rvec, tvec, filter_behind=True
     transformed_points = np.dot(rvec, points_3d[:, :3].T).T + tvec
 
     # Filter out points behind the camera
-    if filter_behind:
-        transformed_points = transformed_points[transformed_points[:, 2] > 0]
+    behind_mask = transformed_points[:, 2] <= 0
+    if not return_behind_mask:
+        transformed_points = transformed_points[~behind_mask]
 
     # Convert to homogeneous coordinates (Nx4)
     transformed_points = np.hstack((transformed_points, np.ones((transformed_points.shape[0], 1))))
@@ -229,7 +234,10 @@ def project_3d_to_2d(points_3d, intrinsic_matrix, rvec, tvec, filter_behind=True
     image_points[:, 0] /= image_points[:, 2]
     image_points[:, 1] /= image_points[:, 2]
 
-    return image_points[:, :2]
+    if return_behind_mask:
+        return image_points[:, :2], behind_mask
+    else:
+        return image_points[:, :2]
 
 
 def monotonic_spline(points, num_points=100):
@@ -273,20 +281,18 @@ def overlay_trajectory(cam_name, element, image, trajectory, intrinsic_matrix=No
     
     img_h, img_w = image.shape[:2]  # Get image dimensions
 
-    trajectory = np.vstack([[0, 0, 0], trajectory]) # Add (0,0,0)
-    
     if intrinsic_matrix is not None and extrinsic_matrix is not None:
         rvec = extrinsic_matrix[:3, :3]
         tvec = extrinsic_matrix[:3, 3]
-        # If camera is "bev", swap x and y coordinates. TODO: hard-coded
+        # TODO: hard-coded. If camera is "bev", swap x and y coordinates.
         if cam_name == "bev":
             trajectory[:,:2] = -trajectory[:,:2]
             trajectory = trajectory[:, [1, 0, 2]]
-        trajectory = project_3d_to_2d(np.array(trajectory), intrinsic_matrix, rvec, tvec)
+        trajectory, behind_mask = project_3d_to_2d(np.array(trajectory), intrinsic_matrix, rvec, tvec, return_behind_mask=True)
+        # Skip drawing if a single point of the trajectory is behind the camera
+        if np.any(behind_mask):
+            return image
 
-    # Filter out points that are outside the image boundaries
-    # trajectory = [(x, y) for x, y in trajectory if 0 <= x < img_w and 0 <= y < img_h]
-    
     if len(trajectory) < 2:
         return image
     
