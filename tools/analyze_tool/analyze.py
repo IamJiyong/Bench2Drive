@@ -19,7 +19,7 @@ from utils.config import load_yaml
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Run the analysis tool.")
-    parser.add_argument("--config", type=str, default="configs/default.yaml",
+    parser.add_argument("--config", type=str, default="tools/analyze_tool/configs/default.yaml",
                         help="Path to the configuration file.")
     args = parser.parse_args()
     return args
