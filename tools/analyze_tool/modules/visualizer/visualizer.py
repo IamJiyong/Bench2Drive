@@ -12,11 +12,12 @@ import os
 import cv2
 import numpy as np
 from . import vis_utils
-from .vis_utils import VideoGenerator, set_line_thickness
-from .camera_calibration import load_camera_config
+from .vis_utils import set_line_thickness
+from .video_generator import VideoGenerator
+
 
 class Visualizer:
-    def __init__(self, config, cameras_config):
+    def __init__(self, config, cameras_config, output_root):
         """
         Initialize the Visualizer with the given configuration and camera parameters.
 
@@ -26,30 +27,28 @@ class Visualizer:
         """
         self._config = config
         self.vis_elements = config.elements
+
+        self.output_video = config.get("output_video", False)
+        self.output_images = config.get("output_images", False)
+
         self.cameras_config = cameras_config  # Store camera configurations
         self.camera_matrices = self._load_camera_matrices(self._config.cameras)
+
+        self.video_generator = VideoGenerator(output_root=output_root)
 
 
     def _load_camera_matrices(self, cam_names):
         """Load intrinsic and extrinsic matrices for all cameras."""
         camera_matrices = {}
         for cam_name in cam_names:
-            lidar2img_list = self.cameras_config[cam_name].get('lidar2img_matrix', None)
-
-            if lidar2img_list is not None and False: # TODO: Not implemented yet
-                lidar2img_mat = np.array(lidar2img_list, dtype=np.float64)
-                camera_matrices[cam_name]['lidar2img_matrix'] = lidar2img_mat
-            else:
-                assert 'intrinsic_matrix' in self.cameras_config[cam_name], f"Missing intrinsic matrix for camera {cam_name}."
-                assert 'extrinsic_matrix' in self.cameras_config[cam_name], f"Missing extrinsic matrix for camera {cam_name}."
-
-                intrinsic_matrix, extrinsic_matrix = load_camera_config(self.cameras_config, cam_name)
-                camera_matrices[cam_name] = {"intrinsic": intrinsic_matrix, "extrinsic": extrinsic_matrix}
+            intrinsic_matrix = np.array(self.cameras_config[cam_name]["intrinsic_matrix"], dtype=np.float64)
+            extrinsic_matrix = np.array(self.cameras_config[cam_name]["extrinsic_matrix"], dtype=np.float64)
+            camera_matrices[cam_name] = {"intrinsic": intrinsic_matrix, "extrinsic": extrinsic_matrix}
 
         return camera_matrices
 
 
-    def visualize_output(self, images, model_output, ground_truth=None):
+    def visualize_single(self, images, model_output, ground_truth=None):
         """
         Visualize model outputs on multiple camera images using camera matrices.
 
@@ -58,6 +57,9 @@ class Visualizer:
                         Example: {"rgb_front": <image_array>, "bev": <image_array>, ...}
             model_output (dict): A dictionary containing model predictions such as
                                 planned trajectories, predicted trajectories, bounding boxes, etc.
+            ground_truth (dict): A dictionary containing ground truth data for comparison.
+        Returns:
+            dict: A dictionary containing processed images with overlaid visualizations.
         """
         # Validate that both inputs are provided
         if images is None or model_output is None:
@@ -118,15 +120,31 @@ class Visualizer:
 
     def save_visualization(self, images, image_metas, output_dir):
         """
-        Save the visualization result (images) to the specified directory.
-
+        Save the visualized images to the output directory.
         Args:
             images (list): List of dictionaries of images to be saved.
                 example: [{"rgb_front": <image_array>, "bev": <image_array>, ...}, ...]
             image_metas (dict): Dictionary of image metadata.
                 'scenario': Name of the scenario
                 'frame_id': Frame identifier
-            output_dir (str): Directory where images will be saved.
+            output_dir (str): Path to the output directory.
+        """
+        if self.output_images:
+            self.save_as_images(images, image_metas, output_dir)
+        if self.output_video:
+            self.save_as_video(images, image_metas, output_dir)
+    
+
+    def save_as_images(self, images, image_metas, output_dir):
+        """
+        Save the visualized images to the output directory.
+        args:
+            images (list): List of dictionaries of images to be saved.
+                example: [{"rgb_front": <image_array>, "bev": <image_array>, ...}, ...]
+            image_metas (dict): Dictionary of image metadata.
+                'scenario': Name of the scenario
+                'frame_id': Frame identifier
+            output_dir (str): Path to the output directory.
         """
         # Create the output directory if it does not exist
         os.makedirs(output_dir, exist_ok=True)
@@ -144,19 +162,21 @@ class Visualizer:
                 img_path = os.path.join(sub_dir, f"{cam_name}_{frame_id}.png")
                 cv2.imwrite(img_path, cam_image)
 
-    def generate_video(self, images, image_metas):
+
+    def save_as_video(self, images, image_metas, output_dir):
         """
-        Generate a video from a list of images.
-
-        Args:
-            images (list): A list of image frames (numpy arrays) to be converted to a video.
+        Save the visualized images as a video to the output directory.
+        args:
+            images (list): List of dictionaries of images to be saved.
+                example: [{"rgb_front": <image_array>, "bev": <image_array>, ...}, ...]
+            image_metas (dict): Dictionary of image metadata.
+                'scenario': Name of the scenario
+                'frame_id': Frame identifier
+            output_dir (str): Path to the output directory.     
         """
-        if not images:
-            print("No images provided for video generation.")
-            return
+        # Generate and save the video
+        for i, image in enumerate(images):
+            scenario = image_metas[i]["scenario"]
+            camera = image_metas[i]["camera"]
 
-        # Initialize the video generator
-        video_gen = VideoGenerator(self._config.video)
-
-        # Generate the video
-        video_gen.generate(images)
+            self.video_generator.generate_and_save(images=image, scenario=scenario, camera=camera)

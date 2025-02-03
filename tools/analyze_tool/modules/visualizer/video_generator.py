@@ -1,110 +1,84 @@
 import os
 import cv2
+import argparse
 from tqdm import tqdm
 
+class VideoGenerator:
+    def __init__(self, output_root, fps=15):
+        self.fps = fps
+        self.output_root = output_root
 
-def create_video(images_folder, output_video, fps=15):
-    """
-    Creates a video from images stored in a specific folder.
+    def generate_and_save(self, images, scenario, camera):
+        """
+        Generate and save a video from a list of images.
+        Args:
+            images (list): A list of image frames (numpy arrays) to be converted to a video.
+            meta (dict): Metadata for the video.
+                'scenario': Name of the scenario
+                'camera': Name of the camera
+        Returns:
+            bool: True if video was saved successfully, False otherwise.
+        """
+        first_image = images[0]
+        height, width, _ = first_image.shape
+        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 
-    Args:
-        images_folder (str): Path to the folder containing images.
-        output_video (str): Path to the output video file.
-        fps (int, optional): Frames per second of the output video. Default is 15.
+        # Ensure scenario output directory exists
+        output_folder = os.path.join(self.output_root, 'videos', scenario)
+        os.makedirs(output_folder, exist_ok=True)
+
+        output_video = os.path.join(output_folder, f"{camera}.mp4")
+        video = cv2.VideoWriter(output_video, fourcc, self.fps, (width, height))
+
+        for img in tqdm(images, desc=f"Generating {output_video}"):
+            video.write(img)
+
+        video.release()
+        print(f"✅ Video saved: {output_video}")
+        return True
+
+
+def load(image_dir):
     """
-    if not os.path.exists(images_folder):
-        print(f"❌ Error: Folder '{images_folder}' does not exist.")
-        return
+    Loads images from folders and returns them.
+    """
+    assert os.path.exists(image_dir), f"❌ Error: Folder '{image_dir}' does not exist."
 
     image_files = sorted(
-        [f for f in os.listdir(images_folder) if f.endswith((".jpg", ".png"))]
+        [os.path.join(image_dir, f) for f in os.listdir(image_dir) if f.endswith(".png")]
     )
 
-    if not image_files:
-        print(f"⚠️ Warning: No images found in '{images_folder}'. Skipping...")
-        return
-
-    first_image_path = os.path.join(images_folder, image_files[0])
-    frame = cv2.imread(first_image_path)
-
-    if frame is None:
-        print(f"❌ Error: Could not read the first image '{first_image_path}'.")
-        return
-
-    height, width, _ = frame.shape
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-
-    # Ensure output directory exists
-    output_folder = os.path.dirname(output_video)
-    os.makedirs(output_folder, exist_ok=True)  # Ensure the output folder exists
-
-    video = cv2.VideoWriter(output_video, fourcc, fps, (width, height))
-
-    print(f"🎥 Generating {output_video}...")
-
-    for image_name in tqdm(image_files, desc=f"Generating {output_video}"):
-        image_path = os.path.join(images_folder, str(image_name))
+    images = []
+    for image_path in image_files:
         img = cv2.imread(image_path)
-
         if img is None:
             print(f"⚠️ Warning: Skipping unreadable image '{image_path}'")
             continue
-
-        video.write(img)
-
-    video.release()
-    print(f"✅ Video saved: {output_video}")
-
-
-def main():
-    """
-    Main function to generate videos for each model type, scenario, and camera type.
-    """
-    #-------------------------Config Settings-------------------------#
-    model_types = ["tcp"]   # model_types = ["tcp", "uniad", "vad"] 
- 
-    base_root = "/home/ysh/jiyong/b2d_carla/Bench2Drive"  # Base directory
-
-    camera_types = ["rgb_front", "bev"]     # Camera types to process
-    #-----------------------------------------------------------------#
-
-
-    for model_type in model_types:
-        base_folder = os.path.join(base_root, f"eval_v1_output_{model_type}")
-
-        if not os.path.exists(base_folder):
-            print(f"❌ Error: Base folder '{base_folder}' not found. Skipping '{model_type}' model.")
-            continue
-
-        # Get all scenario directories
-        scenarios = sorted(
-            [d for d in os.listdir(base_folder) if os.path.isdir(os.path.join(base_folder, d))]
-        )
-
-        for scenario in scenarios:
-            scenario_path = os.path.join(base_folder, scenario)
-            print(f"\n📂 Processing scenario: {scenario} (Model: {model_type})")
-
-            for camera_type in camera_types:
-                camera_path = os.path.join(scenario_path, camera_type)
-
-                if not os.path.exists(camera_path):
-                    print(f"⚠️ Warning: Camera folder '{camera_path}' not found. Skipping...")
-                    continue
-
-                # Create the output directory
-                output_video_dir = os.path.join(scenario_path, "output_video")
-                
-                # Ensure output_video folder is created
-                os.makedirs(output_video_dir, exist_ok=True)
-                print(f"📁 Ensuring output directory exists: {output_video_dir}")
-
-                # Set output video path
-                output_video_path = os.path.join(output_video_dir, f"{camera_type}.mp4")
-                print(f"🎥 Creating video for {camera_type} in {scenario} (Model: {model_type})...")
-
-                create_video(camera_path, output_video_path)
+        images.append(img)
+    
+    return images
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Generate videos from images.")
+    parser.add_argument("--eval_dir", nargs='+', required=True, help="List of image folder groups.")
+    parser.add_argument("--cameras", required=True, nargs='+', help="Root directory for saving output videos.")
+    parser.add_argument("--fps", type=int, default=15, help="Frames per second for the output video")
+    
+    args = parser.parse_args()
+    
+    for eval_dir in args.eval_dir:
+        assert os.path.exists(eval_dir), f"❌ Error: Folder '{eval_dir}' does not exist."
+
+        video_generator = VideoGenerator(eval_dir, args.fps)
+        
+        # if scenario starts with 'RouteScenario', then it is a scenario folder
+        scenario_names = [d for d in os.listdir(eval_dir) if d.startswith("RouteScenario")]
+
+        for scenario in scenario_names:
+            scenario_dir = os.path.join(eval_dir, scenario)
+            for camera in args.cameras:
+                camera_dir = os.path.join(scenario_dir, camera)
+                images = load(camera_dir)
+                video_generator.generate_and_save(images, scenario, camera)
+    

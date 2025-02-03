@@ -25,7 +25,7 @@ class DefaultAnalyzer:
         self._visualizer = visualizer
         self._config = config
 
-    def analyze(self):
+    def analyze(self, save_results=True):
         """
         Perform the main analysis flow.
         Override this method in child classes to implement specific analysis logic.
@@ -39,7 +39,7 @@ class DefaultAnalyzer:
         # visualize the data if visualizer is enabled
         if self._config.visualize:
             assert self._visualizer is not None, "Visualizer is not initialized."
-            results['visualize'] = self.visualize()
+            results['visualize'] = self.visualize(save_results)
         
         # analyze model outputs. not implemented in this base class
         results['analysis'] = None
@@ -61,7 +61,7 @@ class DefaultAnalyzer:
         if results.get('analysis', None) is not None:
             self._dataloader.save_data(results['analysis'], output_path)
 
-    def visualize(self):
+    def visualize(self, save_results=True):
         """
         Visualize the given data using the visualizer, if visualization is enabled.
 
@@ -73,29 +73,20 @@ class DefaultAnalyzer:
         # Visualize the data using the visualizer
         vis_images = []
         image_metas = []
-        for data in self._dataloader.get_next_frame():
-            image_meta = {
-                "scenario": data["scenario"],
-                "frame_id": data["frame_id"],
-            }
+        for scenario in self._dataloader.scenarios:
+            for data in self._dataloader.get_next_frame(scenario):
+                image_meta = {
+                    "scenario": scenario,
+                    "frame_id": data["frame_id"],
+                }
 
-            images = data["image"]
-            model_output = data["model_output"]
-            ground_truth = data.get('ground_truth', None)
-            vis_image = self._visualizer.visualize_output(images, model_output, ground_truth)
+                images = data["image"]
+                model_output = data["model_output"]
+                ground_truth = data.get('ground_truth', None)
+                vis_image = self._visualizer.visualize_single(images, model_output, ground_truth)
 
-            image_metas.append(image_meta)
-            vis_images.append(vis_image)
+                image_metas.append(image_meta)
+                vis_images.append(vis_image)
         
-        # Generate video or return list of images
-        # TODO: seperate videos per scenario if specified
-        if self._visualizer._config.output_video:
-            video = self._visualizer.generate_video(
-                vis_images,
-                image_metas,
-                )
-            output = (video, None)
-        if self._visualizer._config.output_images:
-            output = (vis_images, image_metas)
-
-        return output
+        if save_results:
+            self._visualizer.save_visualization(vis_images, image_metas, output_dir=None)

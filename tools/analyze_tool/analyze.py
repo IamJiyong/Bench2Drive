@@ -35,9 +35,10 @@ def main():
     config = load_yaml(args.config)
 
     # 3. Initialize dataloader and visualizer
+    # TODO: dataloader_config만 넘기기
     dataloader = Dataloader(config.dataloader_config, config.visualizer_config)
     if config.get("visualizer_config", None) is not None:
-        visualizer = Visualizer(config.visualizer_config, config.cameras)
+        visualizer = Visualizer(config.visualizer_config, config.cameras, config.output_path)
     else:
         visualizer = None
 
@@ -46,9 +47,6 @@ def main():
 
     # 5. Run the analysis
     results = analyzer.analyze()
-
-    # 6. Save or output the results
-    analyzer.save_results(results, config.dataloader_config.output_path)
 
 if __name__ == "__main__":
     main()

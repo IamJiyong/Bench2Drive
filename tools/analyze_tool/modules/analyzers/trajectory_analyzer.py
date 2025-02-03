@@ -91,7 +91,7 @@ class TrajectoryAnalyzer(DefaultAnalyzer):
                 model_output = data.get("model_output")
                 ground_truth = data.get("ground_truth")
                 # Call your visualizer method or a specialized function
-                self._visualizer.visualize_output(image, model_output, ground_truth)
+                self._visualizer.visualize_single(image, model_output, ground_truth)
 
             # Or call the base class visualize method if it already suits your needs:
             # super().visualize(data)

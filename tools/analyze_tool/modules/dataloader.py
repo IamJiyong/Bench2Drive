@@ -27,19 +27,39 @@ class Dataloader:
                             represent camera names. E.g., {"front_camera": {}, "rear_camera": {}}.
         """
         self.base_path = config["base_path"]
-        # If "scenarios" is not explicitly specified, default to "all"
-        self.scenarios = config.get("scenarios", "all")
         self.output_path = config["output_path"]
 
         # Store the camera names in a list for iteration and easy access
-        # self.cameras = list(cameras.keys())
         self.cameras = visualizer_config["cameras"]
 
         # Collect all frames (scenario, frame_id) pairs in a sorted manner
-        self.frames = self._get_sorted_frames()
+        self.scenarios = self._get_sorted_scenarios(config.get("scenarios", "all"))
+        self.frames = {s: self._get_sorted_frames(s) for s in (self.scenarios)}
 
 
-    def _get_sorted_frames(self):
+    def _get_sorted_scenarios(self, scenario_names="all"):
+        """
+        Gather and return all scenario names from the base_path directory.
+
+        Returns:
+            list: A sorted list of scenario names (str)
+        """
+        scenarios_to_load = []
+
+        # Determine which scenarios to load (all subdirectories or a user-specified subset)
+        if scenario_names == "all":
+            # List all directories in base_path (each directory represents a scenario)
+            scenarios_to_load = [
+                d for d in os.listdir(self.base_path) 
+                if os.path.isdir(os.path.join(self.base_path, d))
+            ]
+        else:
+            scenarios_to_load = scenario_names
+        
+        return scenarios_to_load
+
+
+    def _get_sorted_frames(self, scenario):
         """
         Gather and return all frame IDs from each scenario folder, 
         combining frames found in both camera folders and the 'meta' folder.
@@ -50,42 +70,30 @@ class Dataloader:
                   - frame_id is the string identifier for a particular frame
         """
         frame_ids = []
-        scenarios_to_load = []
 
-        # Determine which scenarios to load (all subdirectories or a user-specified subset)
-        if self.scenarios == "all":
-            # List all directories in base_path (each directory represents a scenario)
-            scenarios_to_load = [
-                d for d in os.listdir(self.base_path) 
-                if os.path.isdir(os.path.join(self.base_path, d))
-            ]
-        else:
-            scenarios_to_load = self.scenarios
+        # Gather frame IDs from each camera folder plus the meta folder
+        scenario_path = os.path.join(self.base_path, scenario)
+        scenario_frames = set()  # Using a set to avoid duplicates
 
-        # For each scenario, gather frame IDs from each camera folder plus the meta folder
-        for scenario in scenarios_to_load:
-            scenario_path = os.path.join(self.base_path, scenario)
-            scenario_frames = set()  # Using a set to avoid duplicates
+        # Check camera folders and 'meta' folder for files
+        for folder in self.cameras + ["meta"]:
+            folder_path = os.path.join(scenario_path, folder)
+            if os.path.exists(folder_path):
+                # Consider files ending with .png or .json (we remove the extension)
+                files = [
+                    f.split(".")[0] for f in os.listdir(folder_path) 
+                    if f.endswith(".png") or f.endswith(".json")
+                ]
+                scenario_frames.update(files)
 
-            # Check camera folders and 'meta' folder for files
-            for folder in self.cameras + ["meta"]:
-                folder_path = os.path.join(scenario_path, folder)
-                if os.path.exists(folder_path):
-                    # Consider files ending with .png or .json (we remove the extension)
-                    files = [
-                        f.split(".")[0] for f in os.listdir(folder_path) 
-                        if f.endswith(".png") or f.endswith(".json")
-                    ]
-                    scenario_frames.update(files)
-
-            # Sort the collected frame IDs and pair each with the scenario name
-            for frame in sorted(scenario_frames):
-                frame_ids.append((scenario, frame))
+        # Sort the collected frame IDs and pair each with the scenario name
+        for frame in sorted(scenario_frames):
+            frame_ids.append(frame)
 
         return frame_ids
 
 
-    def get_next_frame(self):
+    def get_next_frame(self, scenario):
         """
         Generator that yields one frame of data at a time from each scenario. 
         This includes both images for each camera and model output metadata.
@@ -110,7 +118,8 @@ class Dataloader:
                   - "image": A sub-dictionary of camera images
                   - "model_output": A sub-dictionary of loaded metadata from JSON / pickle
         """
-        for scenario, frame_id in self.frames:
+        scenario_path = os.path.join(self.base_path, scenario)
+        for frame_id in self.frames[scenario]:
             # Initialize dictionary for the current frame
             frame_data = {
                 "scenario": scenario,
@@ -118,7 +127,6 @@ class Dataloader:
                 "image": {},
                 "model_output": {}
             }
-            scenario_path = os.path.join(self.base_path, scenario)
 
             # Load Images from each camera folder
             for cam in self.cameras:
@@ -135,24 +143,16 @@ class Dataloader:
                 with open(pid_meta_path, "r") as f:
                     pid_meta = json.load(f)
 
-                # Check if "plan" exists, if not create it
+                # Check if "plan" exists, if not use the waypoints from the JSON file instead
                 if "plan" not in pid_meta:
                     waypoints = []
                     for i in range (1, 5):
                         key = f"wp_{i}"
-                        if key in pid_meta:
-                            waypoints.append(pid_meta[key])
-                    
-                    if waypoints:
-                        pid_meta["plan"] = waypoints
-
-                        # update and save JSON file
-                        with open(pid_meta_path, "w") as f:
-                            json.dump(pid_meta, f, indent=4)
+                        assert key in pid_meta, f"Error: Key '{key}' not found in JSON file."
+                        waypoints.append(pid_meta[key])
+                    pid_meta["plan"] = waypoints                    
 
                 frame_data["model_output"].update(pid_meta)
-                    # for key in pid_meta:
-                        # frame_data["model_output"][key] = pid_meta[key]
 
             # Load model output (pickle) for predictions, if available
             pred_meta_path = os.path.join(scenario_path, "meta", f"{frame_id}_pred.pkl")
@@ -160,14 +160,9 @@ class Dataloader:
                 with open(pred_meta_path, "rb") as f:
                     pred_meta = pickle.load(f)
                     for key in pred_meta:
+                        if key in frame_data["model_output"]:
+                            print(f"Warning: Overwriting key '{key}' in model_output.")
                         frame_data["model_output"][key] = pred_meta[key]
 
             # Yield the populated frame data as a generator
             yield frame_data
-
-
-    def save_data(self, data):
-        """
-        data가 image의 list이면 
-        """
-

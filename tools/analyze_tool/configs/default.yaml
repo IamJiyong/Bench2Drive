@@ -1,5 +1,6 @@
 # default.yaml
 cameras: "/workspace/Bench2Drive/tools/analyze_tool/configs/cameras_config.yaml"
+output_path: "/workspace/Bench2Drive/eval_v1_output"
 
 dataloader_config:
   base_path: "/workspace/Bench2Drive/eval_v1"
@@ -21,16 +22,14 @@ visualizer_config:
     - bev
     - rgb_back
 
-  output_images: true  # whether to generate image
-  output_video: false  # whether to generate video
+  output_images: false  # whether to generate image
+  output_video: true  # whether to generate video
+
   video_generator:
-    # Output path for generated video
-    output_path: "analysis_video.mp4"
-    # Frames per second for the output video
     fps: 30
 
   # Which elements to visualize (list of strings)
   elements:
     - planned_trajectory
-    # - predicted_trajectory
+    - predicted_trajectory
     - bbox_3d
