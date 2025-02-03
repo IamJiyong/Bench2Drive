@@ -35,7 +35,7 @@ def main():
     config = load_yaml(args.config)
 
     # 3. Initialize dataloader and visualizer
-    dataloader = Dataloader(config.dataloader_config, config.cameras)
+    dataloader = Dataloader(config.dataloader_config, config.visualizer_config)
     if config.get("visualizer_config", None) is not None:
         visualizer = Visualizer(config.visualizer_config, config.cameras)
     else:
