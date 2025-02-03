@@ -162,9 +162,6 @@ def draw_bounding_boxes(
         if not mask.any():
             continue
         
-        # Apply the mask to the projected corners
-        corners_2d = corners_2d[mask]
-
         # Draw lines between the projected corners
         for start_idx, end_idx in edges:
             p1 = tuple(corners_2d[start_idx])
