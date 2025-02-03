@@ -99,17 +99,14 @@ class VideoGenerator:
 
 
 def draw_bounding_boxes(
-    image,
-    boxes,
-    cam_name,
-    labels=None,
-    color=(255, 0, 0),
-    thickness=2,
-    camera_matrix=None,
-    extrinsic_matrix=None,
-):
+        image,
+        box_corners,
+        matrices,
+        labels=None,
+        color=(255, 0, 0),
+        thickness=2):
     """
-    Draw 3D bounding boxes on the given image, transforming from 3D world coordinates if necessary.
+    Draw 3D bounding boxes on the given image, transforming from 3D world coordinates.
 
     This function expects each bounding box to be represented by 8 corner points in 3D:
     (x0, y0, z0), (x0, y0, z1), ..., (x1, y1, z0).
@@ -129,15 +126,8 @@ def draw_bounding_boxes(
     Returns:
         numpy.ndarray: The image with bounding boxes drawn on it.
     """
-    if boxes is None or len(boxes) == 0:
+    if box_corners is None or len(box_corners) == 0:
         return image
-
-    # Determine whether we should perform 3D-to-2D projection
-    use_projection = (camera_matrix is not None) and (extrinsic_matrix is not None)
-
-    if use_projection:
-        rvec = extrinsic_matrix[:3, :3]
-        tvec = extrinsic_matrix[:3, 3]
 
     # Predefined edges for connecting the 8 corners of the 3D box
     edges = [
@@ -146,7 +136,7 @@ def draw_bounding_boxes(
         (0, 4), (1, 5), (2, 6), (3, 7)   # vertical connectors
     ]
 
-    for i, box_3d in enumerate(boxes):
+    for i, box_3d in enumerate(box_corners):
         box_3d = np.array(box_3d, dtype=np.float32)
 
         # Validate that the box has shape (8, 3)
@@ -154,23 +144,26 @@ def draw_bounding_boxes(
             print(f"Warning: Unrecognized bounding box shape: {box_3d.shape}")
             continue
 
-        # Project corners if camera parameters are provided
-        if use_projection:
-            # If camera is "bev", swap x and y coordinates
-            # TODO: hard-coded
-            if cam_name == "bev":
-                box_3d[:,:2] = -box_3d[:,:2]
-                box_3d = box_3d[:, [1, 0, 2]]
-            corners_2d, behind_mask = project_3d_to_2d(box_3d, camera_matrix, rvec, tvec, return_behind_mask=True)
-            # Skip drawing if all corners are behind the camera
-            if np.all(behind_mask):
-                continue
-        else:
-            # If no camera parameters are given, assume the box is already in 2D somehow.
-            # (Typically, you'd have camera data for a 3D box, but we handle the fallback.)
-            corners_2d = box_3d[:, :2]
+        corners_2d, behind_mask = project_3d_to_2d(box_3d, matrices, return_behind_mask=True)
 
         corners_2d = np.array(corners_2d, dtype=np.int32)
+
+        # Ensure projected coordinates are within reasonable bounds
+        mask1 = ((corners_2d[:, 0] > -1e5) & (corners_2d[:, 0] < 1e5) &
+                    (corners_2d[:, 1] > -1e5) & (corners_2d[:, 1] < 1e5))
+        
+        # Ensure the bounding box size in 2D is reasonable
+        mask2 = (corners_2d.max(axis=0) - corners_2d.min(axis=0) < 2000).all()
+        
+        # Combine both masks
+        mask = mask1 & mask2 & ~behind_mask
+        
+        # Skip drawing if the bounding box is fully masked out
+        if not mask.any():
+            continue
+        
+        # Apply the mask to the projected corners
+        corners_2d = corners_2d[mask]
 
         # Draw lines between the projected corners
         for start_idx, end_idx in edges:
@@ -196,25 +189,27 @@ def draw_bounding_boxes(
     return image
 
 
-def project_3d_to_2d(points_3d, intrinsic_matrix, rvec, tvec, return_behind_mask=False):
+def project_3d_to_2d(points_3d, matrices, return_behind_mask=False):
     """
     Projects 3D world coordinates to 2D image coordinates.
 
     Args:
         points_3d (numpy.ndarray): Nx3 array of 3D points.
-        intrinsic_matrix (numpy.ndarray): 3x3 intrinsic camera matrix.
-        rvec (numpy.ndarray): 3x3 rotation matrix.
-        tvec (numpy.ndarray): 3x1 translation vector.
+        matrices (dict): Dictionary containing 'intrinsic' and 'extrinsic' matrices.
+        return_behind_mask (bool): Whether to return a mask for points behind the camera.
 
     Returns:
         numpy.ndarray: Nx2 array of projected 2D points.
     """
-    if points_3d.shape[1] == 3:
-        # Convert to homogeneous coordinates (Nx4)
-        points_3d = np.hstack((points_3d, np.ones((points_3d.shape[0], 1))))
+    # TODO: Implement using combined intrinsic and extrinsic matrices (lidar2img)
+    intrinsic, extrinsic = matrices['intrinsic'], matrices['extrinsic']
+    rvec, tvec = extrinsic[:3, :3], extrinsic[:3, 3]
+
+    # Convert to homogeneous coordinates (Nx4)
+    points_4d = np.hstack((points_3d, np.ones((points_3d.shape[0], 1))))
 
     # Apply extrinsic transformation
-    transformed_points = np.dot(rvec, points_3d[:, :3].T).T + tvec
+    transformed_points = np.dot(rvec, points_4d[:, :3].T).T + tvec
 
     # Filter out points behind the camera
     behind_mask = transformed_points[:, 2] <= 0
@@ -225,7 +220,7 @@ def project_3d_to_2d(points_3d, intrinsic_matrix, rvec, tvec, return_behind_mask
     transformed_points = np.hstack((transformed_points, np.ones((transformed_points.shape[0], 1))))
 
     # Compute projection matrix
-    projection_matrix = np.dot(intrinsic_matrix, np.eye(3, 4))
+    projection_matrix = np.dot(intrinsic, np.eye(3, 4))
 
     # Apply projection
     image_points = np.dot(projection_matrix, transformed_points.T).T
@@ -238,6 +233,7 @@ def project_3d_to_2d(points_3d, intrinsic_matrix, rvec, tvec, return_behind_mask
         return image_points[:, :2], behind_mask
     else:
         return image_points[:, :2]
+
 
 
 def monotonic_spline(points, num_points=100):
@@ -266,7 +262,12 @@ def monotonic_spline(points, num_points=100):
 
     return np.column_stack((x_new, y_new))
 
-def overlay_trajectory(cam_name, element, image, trajectory, intrinsic_matrix=None, extrinsic_matrix=None):
+def overlay_trajectory(
+        image,
+        trajectory,
+        matrices,
+        is_ego=True,
+        thickness=4):
     """
     Overlay a trajectory (sequence of points) on the given image, transforming from 3D world coordinates if necessary.
 
@@ -281,48 +282,35 @@ def overlay_trajectory(cam_name, element, image, trajectory, intrinsic_matrix=No
     
     img_h, img_w = image.shape[:2]  # Get image dimensions
 
-    if intrinsic_matrix is not None and extrinsic_matrix is not None:
-        rvec = extrinsic_matrix[:3, :3]
-        tvec = extrinsic_matrix[:3, 3]
-        # TODO: hard-coded. If camera is "bev", swap x and y coordinates.
-        if cam_name == "bev":
-            trajectory[:,:2] = -trajectory[:,:2]
-            trajectory = trajectory[:, [1, 0, 2]]
-        trajectory, behind_mask = project_3d_to_2d(np.array(trajectory), intrinsic_matrix, rvec, tvec, return_behind_mask=True)
-        # Skip drawing if a single point of the trajectory is behind the camera
-        if np.any(behind_mask):
-            return image
+    trajectory, behind_mask = project_3d_to_2d(np.array(trajectory), matrices, return_behind_mask=True)
+    # TODO: for debugging behind_mask
+    if np.any(behind_mask):
+        return image
 
     if len(trajectory) < 2:
         return image
     
     trajectory = monotonic_spline(trajectory, num_points=500)
 
-    # Set curve thickness
-    trajectory_thickness = set_trajectory_thickness(cam_name, element)
-
     y_coords = np.array([pt[1] for pt in trajectory])
     min_y, max_y = y_coords.min(), min(y_coords.max(), img_h)
     
-
     for i in range(len(trajectory) - 1):
 
         pt1 = (int(trajectory[i][0]), int(trajectory[i][1]))
         pt2 = (int(trajectory[i + 1][0]), int(trajectory[i + 1][1]))
 
         intensity = int(255 * (trajectory[i][1] - min_y) / (max_y - min_y))
-        if element == "planned_trajectory":
+        if is_ego:
             color = (255, 255 - intensity, 0)  # Light blue with intensity variation
-        elif element == "predicted_trajectory":
+        else:
             color = (0, 255 - intensity, 255)
-        cv2.line(image, pt1, pt2, color=color, thickness=trajectory_thickness)
+        cv2.line(image, pt1, pt2, color=color, thickness=thickness)
     
     return image
 
-def set_trajectory_thickness(cam_name, element):
-    if cam_name == "bev" and element == "predicted_trajectory":
-        thickness = 2
-    elif cam_name == "bev" and element == "planned_trajectory":
+def set_line_thickness(cam_name, element):
+    if cam_name == "bev":
         thickness = 2
     else:
         thickness = 4
