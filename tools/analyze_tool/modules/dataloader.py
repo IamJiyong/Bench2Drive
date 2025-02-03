@@ -13,7 +13,7 @@ import pickle
 import cv2
 
 class Dataloader:
-    def __init__(self, config, cameras):
+    def __init__(self, config, visualizer_config):
         """
         Initialize the Dataloader with a dataset path and configuration.
 
@@ -32,7 +32,8 @@ class Dataloader:
         self.output_path = config["output_path"]
 
         # Store the camera names in a list for iteration and easy access
-        self.cameras = list(cameras.keys())
+        # self.cameras = list(cameras.keys())
+        self.cameras = visualizer_config["cameras"]
 
         # Collect all frames (scenario, frame_id) pairs in a sorted manner
         self.frames = self._get_sorted_frames()
@@ -133,8 +134,25 @@ class Dataloader:
             if os.path.exists(pid_meta_path):
                 with open(pid_meta_path, "r") as f:
                     pid_meta = json.load(f)
-                    for key in pid_meta:
-                        frame_data["model_output"][key] = pid_meta[key]
+
+                # Check if "plan" exists, if not create it
+                if "plan" not in pid_meta:
+                    waypoints = []
+                    for i in range (1, 5):
+                        key = f"wp_{i}"
+                        if key in pid_meta:
+                            waypoints.append(pid_meta[key])
+                    
+                    if waypoints:
+                        pid_meta["plan"] = waypoints
+
+                        # update and save JSON file
+                        with open(pid_meta_path, "w") as f:
+                            json.dump(pid_meta, f, indent=4)
+
+                frame_data["model_output"].update(pid_meta)
+                    # for key in pid_meta:
+                        # frame_data["model_output"][key] = pid_meta[key]
 
             # Load model output (pickle) for predictions, if available
             pred_meta_path = os.path.join(scenario_path, "meta", f"{frame_id}_pred.pkl")
