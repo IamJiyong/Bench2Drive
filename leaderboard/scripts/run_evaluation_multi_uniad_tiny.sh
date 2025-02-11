@@ -3,7 +3,7 @@ BASE_PORT=30000
 BASE_TM_PORT=50000
 IS_BENCH2DRIVE=True
 BASE_ROUTES=leaderboard/data/bench2drive220
-TEAM_AGENT=team_code/uniad_b2d_agent.py
+TEAM_AGENT=leaderboard/team_code/uniad_b2d_agent.py
 # Must set YOUR_CKPT_PATH
 TEAM_CONFIG=Bench2DriveZoo/adzoo/uniad/configs/stage2_e2e/tiny_e2e_b2d.py+Bench2DriveZoo/ckpts/uniad_tiny_b2d.pth
 BASE_CHECKPOINT_ENDPOINT=eval_bench2drive220
@@ -32,8 +32,11 @@ fi
 
 echo -e "**************\033[36m Please Manually adjust GPU or TASK_ID \033[0m **************"
 # Example, 8*H100, 1 task per gpu
-GPU_RANK_LIST=(0 1 2 3 4 5 6 7)
+# GPU_RANK_LIST=(0 1 2 3 4 5 6 7)
+GPU_RANK_LIST=(0)
 TASK_LIST=(0 1 2 3 4 5 6 7)
+# TASK_LIST=(0)
+
 echo -e "\033[32m GPU_RANK_LIST: $GPU_RANK_LIST \033[0m"
 echo -e "\033[32m TASK_LIST: $TASK_LIST \033[0m"
 echo -e "***********************************************************************************"

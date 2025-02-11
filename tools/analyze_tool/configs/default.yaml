@@ -2,11 +2,20 @@
 cameras: "/workspace/Bench2Drive/tools/analyze_tool/configs/cameras_config.yaml"
 
 dataloader_config:
-  base_path: "/workspace/Bench2Drive/eval_v1"
+  base_path: "/workspace/Bench2Drive/eval_v1_uniad"
   # scenearios: "all"
   scenarios:
-    - "RouteScenario_3074_rep0_Town12_HighwayCutIn_1_0_01_30_09_19_14"
-  output_path: "/workspace/Bench2Drive/eval_v1_output"
+    # - "RouteScenario_1711_rep0_Town12_ParkingCutIn_1_15_02_02_09_51_20"
+    # - "RouteScenario_2164_rep0_Town12_VehicleTurningRoutePedestrian_1_0_02_02_10_09_15"
+    # - "RouteScenario_2215_rep0_Town12_BlockedIntersection_1_25_02_02_11_06_01"
+    # - "RouteScenario_2273_rep0_Town12_MergerIntoSlowTraffic_1_5_02_02_12_42_29"
+    - "RouteScenario_2286_rep0_Town12_HighwayCutIn_1_18_02_02_13_01_20"
+    # - "RouteScenario_2403_rep0_Town12_VanillaNonSignalizedTurn_1_5_02_02_13_16_55"
+    # - "RouteScenario_3074_rep0_Town12_HighwayCutIn_1_0_02_02_13_27_36"
+    # - "RouteScenario_24224_rep0_Town02_DynamicObjectCrossing_1_5_02_02_13_43_56"
+    # - "RouteScenario_25854_rep0_Town03_HazardAtSideLaneTwoWays_1_1_02_02_14_39_28"
+    # - "RouteScenario_26950_rep0_Town03_OppositeVehicleRunningRedLight_1_19_02_02_14_07_20"
+  output_path: "/workspace/Bench2Drive/eval_v1_output_uniad_prediction"
 
 analyze_config:
   # Specify which analyzer to use ("default" or "trajectory", etc.)
@@ -32,5 +41,5 @@ visualizer_config:
   # Which elements to visualize (list of strings)
   elements:
     - planned_trajectory
-    # - predicted_trajectory
+    - predicted_trajectory
     - bbox_3d

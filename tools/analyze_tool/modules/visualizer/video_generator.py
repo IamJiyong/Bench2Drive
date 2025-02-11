@@ -61,16 +61,16 @@ def main():
     Main function to generate videos for each model type, scenario, and camera type.
     """
     #-------------------------Config Settings-------------------------#
-    model_types = ["tcp"]   # model_types = ["tcp", "uniad", "vad"] 
+    model_types = ["uniad"]   # model_types = ["tcp", "uniad", "vad"] 
  
     base_root = "/home/ysh/jiyong/b2d_carla/Bench2Drive"  # Base directory
 
-    camera_types = ["rgb_front", "bev"]     # Camera types to process
+    camera_types = ["rgb_front", "bev", "rgb_back"]     # Camera types to process
     #-----------------------------------------------------------------#
 
 
     for model_type in model_types:
-        base_folder = os.path.join(base_root, f"eval_v1_output_{model_type}")
+        base_folder = os.path.join(base_root, f"eval_v1_output_{model_type}_prediction")
 
         if not os.path.exists(base_folder):
             print(f"❌ Error: Base folder '{base_folder}' not found. Skipping '{model_type}' model.")
